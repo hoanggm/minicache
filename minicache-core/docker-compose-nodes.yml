@@ -1,0 +1,111 @@
+version: '3.8'
+
+services:
+  # ==========================================
+  # NODE 1
+  # ==========================================
+  minicache-node1:
+    container_name: minicache-node1
+    image: minicache-core:latest
+    ports:
+      - "8000:8000"
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+      - CORE_PORT=8000
+      - NODE_ID=node1
+      - CLUSTER_NODES=minicache-node1:9090,minicache-node2:9091,minicache-node3:9092
+      - JDK_JAVA_OPTIONS=-XX:InitialRAMPercentage=75.0 -XX:MaxRAMPercentage=75.0
+      - STORAGE_SIZE=1024
+      - STORAGE_TYPE=2
+      - VERSION=v3
+    deploy:
+      resources:
+        limits:
+          cpus: '3.0'
+          memory: 2048M
+        reservations:
+          cpus: '3.0'
+          memory: 512M
+    restart: always
+    networks:
+      - minicache-network
+
+  # ==========================================
+  # NODE 2
+  # ==========================================
+  minicache-node2:
+    container_name: minicache-node2
+    image: minicache-core:latest
+    ports:
+      - "8001:8001"
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+      - CORE_PORT=8001
+      - NODE_ID=node2
+      - CLUSTER_NODES=minicache-node1:9090,minicache-node2:9091,minicache-node3:9092
+      - JDK_JAVA_OPTIONS=-XX:InitialRAMPercentage=75.0 -XX:MaxRAMPercentage=75.0
+      - STORAGE_SIZE=1024
+      - STORAGE_TYPE=2
+      - VERSION=v3
+    deploy:
+      resources:
+        limits:
+          cpus: '3.0'
+          memory: 2048M
+        reservations:
+          cpus: '3.0'
+          memory: 512M
+    restart: always
+    networks:
+      - minicache-network
+
+  # ==========================================
+  # NODE 3
+  # ==========================================
+  minicache-node3:
+    container_name: minicache-node3
+    image: minicache-core:latest
+    ports:
+      - "8002:8002"
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+      - CORE_PORT=8002
+      - NODE_ID=node3
+      - CLUSTER_NODES=minicache-node1:9090,minicache-node2:9091,minicache-node3:9092
+      - JDK_JAVA_OPTIONS=-XX:InitialRAMPercentage=75.0 -XX:MaxRAMPercentage=75.0
+      - STORAGE_SIZE=1024
+      - STORAGE_TYPE=2
+      - VERSION=v3
+    deploy:
+      resources:
+        limits:
+          cpus: '3.0'
+          memory: 2048M
+        reservations:
+          cpus: '3.0'
+          memory: 512M
+    restart: always
+    networks:
+      - minicache-network
+
+  # ==========================================
+  # Built-in CLI
+  # ==========================================
+  minicache-cli:
+    container_name: minicache-cli
+    image: minicache-cli:latest
+    ports:
+      - "8989:8989"
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+      - CORE_HOST=127.0.0.1
+      - CORE_PORT=8000
+      - VERSION=v2
+    restart: always
+    networks:
+      - minicache-network
+
+networks:
+  minicache-network:
+    name: minicache-network
+    driver: bridge

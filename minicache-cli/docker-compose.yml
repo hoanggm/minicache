@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  minicache-cli:
+    container_name: minicache-cli
+    image: minicache-cli:latest
+    ports:
+      - "8989:8989"
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+      - CORE_HOST=127.0.0.1
+      - CORE_PORT=8000
+      - VERSION=v2
+    networks:
+      - shared-network
+
+networks:
+  shared-network:
+    external: true
+    name: minicache-network

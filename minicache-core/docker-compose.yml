@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  minicache-core:
+    container_name: minicache-core-service
+    image: minicache-core:latest
+    ports:
+      - "8000:8000"
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+      - CORE_PORT=8000
+      - JDK_JAVA_OPTIONS=-XX:InitialRAMPercentage=25.0 -XX:MaxRAMPercentage=70.0
+      - STORAGE_SIZE=1024
+      - STORAGE_TYPE=2
+      - VERSION=v2
+    deploy:
+      resources:
+        limits:
+          cpus: '3.0'
+          memory: 2048M
+        reservations:
+          cpus: '1.0'
+          memory: 512M
+    restart: always
+    networks:
+      - minicache-network
+
+networks:
+  minicache-network:
+    name: minicache-network
+    driver: bridge

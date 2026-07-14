@@ -63,7 +63,7 @@ mvn clean install -DskipTests
 ```java
 minicache.cluster=127.0.0.1:8000,127.0.0.1:8001,127.0.0.1:8002
 minicache.connections.core-pool-size=200
-minicache.connections.max-pool-size=500
+minicache.connections.max-pool-size=300
 minicache.strict-mode=false
 minicache.queuing-time=3000
 minicache.client.connect-timeout=1000

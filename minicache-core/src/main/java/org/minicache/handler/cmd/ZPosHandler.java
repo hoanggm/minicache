@@ -2,23 +2,23 @@ package org.minicache.handler.cmd;
 
 import org.minicache.common.Command;
 import org.minicache.common.Message;
-import org.minicache.engine.CacheEngine;
+import org.minicache.engine.StorageEngine;
 import org.minicache.handler.BaseHandler;
 import org.minicache.handler.ICacheHandler;
 
 public class ZPosHandler extends BaseHandler implements ICacheHandler<String> {
     private static ZPosHandler handler;
 
-    public static ZPosHandler getInstance(CacheEngine cacheEngine) {
+    public static ZPosHandler getInstance(StorageEngine storageEngine) {
         if (handler == null) {
-            handler = new ZPosHandler(cacheEngine);
+            handler = new ZPosHandler(storageEngine);
         }
 
         return handler;
     }
 
-    private ZPosHandler(CacheEngine cacheEngine) {
-        super(cacheEngine);
+    private ZPosHandler(StorageEngine storageEngine) {
+        super(storageEngine);
     }
 
     @Override
@@ -40,6 +40,6 @@ public class ZPosHandler extends BaseHandler implements ICacheHandler<String> {
     @Override
     public String handle(Message input) {
         validateInput(input);
-        return cacheEngine.zGetByPosition(input.getKey(), input.getZsIdx());
+        return storageEngine.zGetByPosition(input.getKey(), input.getZsIdx());
     }
 }

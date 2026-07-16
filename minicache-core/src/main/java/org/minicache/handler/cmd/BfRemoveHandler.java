@@ -2,23 +2,23 @@ package org.minicache.handler.cmd;
 
 import org.minicache.common.Command;
 import org.minicache.common.Message;
-import org.minicache.engine.CacheEngine;
+import org.minicache.engine.StorageEngine;
 import org.minicache.handler.BaseHandler;
 import org.minicache.handler.ICacheHandler;
 
 public class BfRemoveHandler extends BaseHandler implements ICacheHandler<Integer> {
     private static BfRemoveHandler handler;
 
-    public static BfRemoveHandler getInstance(CacheEngine cacheEngine) {
+    public static BfRemoveHandler getInstance(StorageEngine storageEngine) {
         if (handler == null) {
-            handler = new BfRemoveHandler(cacheEngine);
+            handler = new BfRemoveHandler(storageEngine);
         }
 
         return handler;
     }
 
-    private BfRemoveHandler(CacheEngine cacheEngine) {
-        super(cacheEngine);
+    private BfRemoveHandler(StorageEngine storageEngine) {
+        super(storageEngine);
     }
 
     @Override
@@ -37,6 +37,6 @@ public class BfRemoveHandler extends BaseHandler implements ICacheHandler<Intege
     @Override
     public Integer handle(Message input) {
         validateInput(input);
-        return cacheEngine.removeBloomFilter(input.getKey());
+        return storageEngine.removeBloomFilter(input.getKey());
     }
 }

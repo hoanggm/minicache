@@ -4,7 +4,7 @@ import org.minicache.common.Command;
 
 import java.util.Map;
 
-public abstract class CacheEngine {
+public abstract class StorageEngine {
     public abstract Map<String, String> getInitCfg();
 
     public abstract String put(String key, String value, Long ttl, Boolean notExists);

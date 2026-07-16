@@ -1,13 +1,13 @@
 package org.minicache.handler;
 
 import org.minicache.common.Message;
-import org.minicache.engine.CacheEngine;
+import org.minicache.engine.StorageEngine;
 
 public abstract class BaseHandler {
-    protected final CacheEngine cacheEngine;
+    protected final StorageEngine storageEngine;
 
-    protected BaseHandler(CacheEngine cacheEngine) {
-        this.cacheEngine = cacheEngine;
+    protected BaseHandler(StorageEngine storageEngine) {
+        this.storageEngine = storageEngine;
     }
 
     protected abstract void validateInput(Message message);

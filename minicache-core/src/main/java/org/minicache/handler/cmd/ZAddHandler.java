@@ -2,23 +2,23 @@ package org.minicache.handler.cmd;
 
 import org.minicache.common.Command;
 import org.minicache.common.Message;
-import org.minicache.engine.CacheEngine;
+import org.minicache.engine.StorageEngine;
 import org.minicache.handler.BaseHandler;
 import org.minicache.handler.ICacheHandler;
 
 public class ZAddHandler extends BaseHandler implements ICacheHandler<String> {
     private static ZAddHandler handler;
 
-    public static ZAddHandler getInstance(CacheEngine cacheEngine) {
+    public static ZAddHandler getInstance(StorageEngine storageEngine) {
         if (handler == null) {
-            handler = new ZAddHandler(cacheEngine);
+            handler = new ZAddHandler(storageEngine);
         }
 
         return handler;
     }
 
-    private ZAddHandler(CacheEngine cacheEngine) {
-        super(cacheEngine);
+    private ZAddHandler(StorageEngine storageEngine) {
+        super(storageEngine);
     }
 
     @Override
@@ -46,6 +46,6 @@ public class ZAddHandler extends BaseHandler implements ICacheHandler<String> {
     @Override
     public String handle(Message input) {
         validateInput(input);
-        return cacheEngine.zAdd(input.getKey(), input.getZsScore(), input.getZsMember(), input.getValue());
+        return storageEngine.zAdd(input.getKey(), input.getZsScore(), input.getZsMember(), input.getValue());
     }
 }

@@ -2,23 +2,23 @@ package org.minicache.handler.cmd;
 
 import org.minicache.common.Command;
 import org.minicache.common.Message;
-import org.minicache.engine.CacheEngine;
+import org.minicache.engine.StorageEngine;
 import org.minicache.handler.BaseHandler;
 import org.minicache.handler.ICacheHandler;
 
 public class BfAddHandler extends BaseHandler implements ICacheHandler<String> {
     private static BfAddHandler handler;
 
-    public static BfAddHandler getInstance(CacheEngine cacheEngine) {
+    public static BfAddHandler getInstance(StorageEngine storageEngine) {
         if (handler == null) {
-            handler = new BfAddHandler(cacheEngine);
+            handler = new BfAddHandler(storageEngine);
         }
 
         return handler;
     }
 
-    private BfAddHandler(CacheEngine cacheEngine) {
-        super(cacheEngine);
+    private BfAddHandler(StorageEngine storageEngine) {
+        super(storageEngine);
     }
 
     @Override
@@ -40,6 +40,6 @@ public class BfAddHandler extends BaseHandler implements ICacheHandler<String> {
     @Override
     public String handle(Message input) {
         validateInput(input);
-        return cacheEngine.addBloomFilter(input.getKey(), input.getValue());
+        return storageEngine.addBloomFilter(input.getKey(), input.getValue());
     }
 }

@@ -3,7 +3,7 @@ package org.minicache.server;
 import org.apache.logging.log4j.Logger;
 import org.minicache.common.Command;
 import org.minicache.config.AppConfig;
-import org.minicache.engine.CacheEngine;
+import org.minicache.engine.StorageEngine;
 import org.minicache.handler.ICacheHandler;
 import org.minicache.handler.cmd.*;
 import org.minicache.util.CommonUtil;
@@ -20,41 +20,41 @@ import java.util.function.Supplier;
 public abstract class BaseCacheServer {
     protected static final AtomicBoolean isRunning = new AtomicBoolean(true);
     protected static final HashMap<Command, Supplier<ICacheHandler<?>>> commandCacheHandler;
-    protected static final CacheEngine cacheEngine;
+    protected static final StorageEngine STORAGE_ENGINE;
     protected static ServerSocket socketServer;
     protected static List<Command> readCommands;
     protected static List<Command> writeCommands;
 
     static {
         if (AppConfig.STORAGE_TYPE.equals(AppConfig.STORAGE_TYPES.SEGMENT)) {
-            cacheEngine = new org.minicache.engine.segment.CacheEngine(AppConfig.STORAGE_SIZE);
+            STORAGE_ENGINE = new org.minicache.engine.segment.StorageEngine(AppConfig.STORAGE_SIZE);
         } else if (AppConfig.STORAGE_TYPE.equals(AppConfig.STORAGE_TYPES.SHARED_NOTHING)) {
-            cacheEngine = new org.minicache.engine.sharednothing.CacheEngine(AppConfig.STORAGE_SIZE);
+            STORAGE_ENGINE = new org.minicache.engine.sharednothing.StorageEngine(AppConfig.STORAGE_SIZE);
         } else {
-            cacheEngine = new org.minicache.engine.single.CacheEngine(AppConfig.STORAGE_SIZE);
+            STORAGE_ENGINE = new org.minicache.engine.single.StorageEngine(AppConfig.STORAGE_SIZE);
         }
 
         commandCacheHandler = new HashMap<>();
-        commandCacheHandler.put(Command.PUT, () -> PutHandler.getInstance(cacheEngine));
-        commandCacheHandler.put(Command.GET, () -> GetHandler.getInstance(cacheEngine));
-        commandCacheHandler.put(Command.DELETE, () -> DeleteHandler.getInstance(cacheEngine));
-        commandCacheHandler.put(Command.EXISTS, () -> ExistsHandler.getInstance(cacheEngine));
-        commandCacheHandler.put(Command.CLEAR, () -> ClearHandler.getInstance(cacheEngine));
-        commandCacheHandler.put(Command.LST_KEY, () -> LstKeyHandler.getInstance(cacheEngine));
-        commandCacheHandler.put(Command.BF_INIT, () -> BfInitHandler.getInstance(cacheEngine));
-        commandCacheHandler.put(Command.BF_ADD, () -> BfAddHandler.getInstance(cacheEngine));
-        commandCacheHandler.put(Command.BF_EXISTS, () -> BfExistsHandler.getInstance(cacheEngine));
-        commandCacheHandler.put(Command.BF_RM, () -> BfRemoveHandler.getInstance(cacheEngine));
-        commandCacheHandler.put(Command.BF_RS, () -> BfResetHandler.getInstance(cacheEngine));
-        commandCacheHandler.put(Command.Z_SCR, () -> ZScoreHandler.getInstance(cacheEngine));
-        commandCacheHandler.put(Command.Z_ADD, () -> ZAddHandler.getInstance(cacheEngine));
-        commandCacheHandler.put(Command.Z_RANK, () -> ZRankHandler.getInstance(cacheEngine));
-        commandCacheHandler.put(Command.Z_RM, () -> ZRemHandler.getInstance(cacheEngine));
-        commandCacheHandler.put(Command.Z_DEL, () -> ZDelHandler.getInstance(cacheEngine));
-        commandCacheHandler.put(Command.Z_INCR, () -> ZIncrHandler.getInstance(cacheEngine));
-        commandCacheHandler.put(Command.Z_POS, () -> ZPosHandler.getInstance(cacheEngine));
-        commandCacheHandler.put(Command.Z_RANGE, () -> ZRanHandler.getInstance(cacheEngine));
-        commandCacheHandler.put(Command.Z_RSCR, () -> ZRanScoreHandler.getInstance(cacheEngine));
+        commandCacheHandler.put(Command.PUT, () -> PutHandler.getInstance(STORAGE_ENGINE));
+        commandCacheHandler.put(Command.GET, () -> GetHandler.getInstance(STORAGE_ENGINE));
+        commandCacheHandler.put(Command.DELETE, () -> DeleteHandler.getInstance(STORAGE_ENGINE));
+        commandCacheHandler.put(Command.EXISTS, () -> ExistsHandler.getInstance(STORAGE_ENGINE));
+        commandCacheHandler.put(Command.CLEAR, () -> ClearHandler.getInstance(STORAGE_ENGINE));
+        commandCacheHandler.put(Command.LST_KEY, () -> LstKeyHandler.getInstance(STORAGE_ENGINE));
+        commandCacheHandler.put(Command.BF_INIT, () -> BfInitHandler.getInstance(STORAGE_ENGINE));
+        commandCacheHandler.put(Command.BF_ADD, () -> BfAddHandler.getInstance(STORAGE_ENGINE));
+        commandCacheHandler.put(Command.BF_EXISTS, () -> BfExistsHandler.getInstance(STORAGE_ENGINE));
+        commandCacheHandler.put(Command.BF_RM, () -> BfRemoveHandler.getInstance(STORAGE_ENGINE));
+        commandCacheHandler.put(Command.BF_RS, () -> BfResetHandler.getInstance(STORAGE_ENGINE));
+        commandCacheHandler.put(Command.Z_SCR, () -> ZScoreHandler.getInstance(STORAGE_ENGINE));
+        commandCacheHandler.put(Command.Z_ADD, () -> ZAddHandler.getInstance(STORAGE_ENGINE));
+        commandCacheHandler.put(Command.Z_RANK, () -> ZRankHandler.getInstance(STORAGE_ENGINE));
+        commandCacheHandler.put(Command.Z_RM, () -> ZRemHandler.getInstance(STORAGE_ENGINE));
+        commandCacheHandler.put(Command.Z_DEL, () -> ZDelHandler.getInstance(STORAGE_ENGINE));
+        commandCacheHandler.put(Command.Z_INCR, () -> ZIncrHandler.getInstance(STORAGE_ENGINE));
+        commandCacheHandler.put(Command.Z_POS, () -> ZPosHandler.getInstance(STORAGE_ENGINE));
+        commandCacheHandler.put(Command.Z_RANGE, () -> ZRanHandler.getInstance(STORAGE_ENGINE));
+        commandCacheHandler.put(Command.Z_RSCR, () -> ZRanScoreHandler.getInstance(STORAGE_ENGINE));
 
         readCommands = Arrays.asList(
                 Command.GET,
@@ -102,7 +102,7 @@ public abstract class BaseCacheServer {
             }
         }));
 
-        var cfgMap = cacheEngine.getInitCfg();
+        var cfgMap = STORAGE_ENGINE.getInitCfg();
         if (cfgMap != null) {
             log.info("CacheEngine-Info: Number of Segments={}", cfgMap.get("segmentCount"));
             log.info("[Max-Size-Per-Segment={} bytes, Expected-Keys-Per-Segment={}]",

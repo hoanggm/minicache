@@ -13,8 +13,8 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class CacheEngine extends org.minicache.engine.CacheEngine {
-    private static final Logger log = LogManager.getLogger(CacheEngine.class);
+public class StorageEngine extends org.minicache.engine.StorageEngine {
+    private static final Logger log = LogManager.getLogger(StorageEngine.class);
     private final long maxCacheSize;
     private final AtomicLong currentSizeBytes;
     private final ConcurrentHashMap<String, Value> pairsStorage;
@@ -27,7 +27,7 @@ public class CacheEngine extends org.minicache.engine.CacheEngine {
     private final String BLOOM_FILTERS_KEY_PREFIX = "bf_";
     private final String SKIP_LISTS_KEY_PREFIX = "zs_";
 
-    public CacheEngine(long maxSize) {
+    public StorageEngine(long maxSize) {
         this.maxCacheSize = maxSize * 1024 * 1024;
         this.currentSizeBytes = new AtomicLong(0);
         this.pairsStorage = new ConcurrentHashMap<>();

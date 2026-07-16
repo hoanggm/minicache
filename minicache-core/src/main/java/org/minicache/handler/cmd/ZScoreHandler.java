@@ -2,23 +2,23 @@ package org.minicache.handler.cmd;
 
 import org.minicache.common.Command;
 import org.minicache.common.Message;
-import org.minicache.engine.CacheEngine;
+import org.minicache.engine.StorageEngine;
 import org.minicache.handler.BaseHandler;
 import org.minicache.handler.ICacheHandler;
 
 public class ZScoreHandler extends BaseHandler implements ICacheHandler<String> {
     private static ZScoreHandler handler;
 
-    public static ZScoreHandler getInstance(CacheEngine cacheEngine) {
+    public static ZScoreHandler getInstance(StorageEngine storageEngine) {
         if (handler == null) {
-            handler = new ZScoreHandler(cacheEngine);
+            handler = new ZScoreHandler(storageEngine);
         }
 
         return handler;
     }
 
-    private ZScoreHandler(CacheEngine cacheEngine) {
-        super(cacheEngine);
+    private ZScoreHandler(StorageEngine storageEngine) {
+        super(storageEngine);
     }
 
     @Override
@@ -40,6 +40,6 @@ public class ZScoreHandler extends BaseHandler implements ICacheHandler<String> 
     @Override
     public String handle(Message input) {
         validateInput(input);
-        return cacheEngine.zScore(input.getKey(), input.getZsMember());
+        return storageEngine.zScore(input.getKey(), input.getZsMember());
     }
 }

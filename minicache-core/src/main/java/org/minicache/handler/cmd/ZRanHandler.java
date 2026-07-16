@@ -2,23 +2,23 @@ package org.minicache.handler.cmd;
 
 import org.minicache.common.Command;
 import org.minicache.common.Message;
-import org.minicache.engine.CacheEngine;
+import org.minicache.engine.StorageEngine;
 import org.minicache.handler.BaseHandler;
 import org.minicache.handler.ICacheHandler;
 
 public class ZRanHandler extends BaseHandler implements ICacheHandler<String> {
     private static ZRanHandler handler;
 
-    public static ZRanHandler getInstance(CacheEngine cacheEngine) {
+    public static ZRanHandler getInstance(StorageEngine storageEngine) {
         if (handler == null) {
-            handler = new ZRanHandler(cacheEngine);
+            handler = new ZRanHandler(storageEngine);
         }
 
         return handler;
     }
 
-    private ZRanHandler(CacheEngine cacheEngine) {
-        super(cacheEngine);
+    private ZRanHandler(StorageEngine storageEngine) {
+        super(storageEngine);
     }
 
     @Override
@@ -43,6 +43,6 @@ public class ZRanHandler extends BaseHandler implements ICacheHandler<String> {
     @Override
     public String handle(Message input) {
         validateInput(input);
-        return cacheEngine.zRangeByPositions(input.getKey(), input.getZsStartIdx(), input.getZsStopIdx());
+        return storageEngine.zRangeByPositions(input.getKey(), input.getZsStartIdx(), input.getZsStopIdx());
     }
 }

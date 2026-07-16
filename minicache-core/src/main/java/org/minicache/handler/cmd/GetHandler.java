@@ -2,23 +2,23 @@ package org.minicache.handler.cmd;
 
 import org.minicache.common.Command;
 import org.minicache.common.Message;
-import org.minicache.engine.CacheEngine;
+import org.minicache.engine.StorageEngine;
 import org.minicache.handler.BaseHandler;
 import org.minicache.handler.ICacheHandler;
 
 public class GetHandler extends BaseHandler implements ICacheHandler<String> {
     private static GetHandler handler;
 
-    public static GetHandler getInstance(CacheEngine cacheEngine) {
+    public static GetHandler getInstance(StorageEngine storageEngine) {
         if (handler == null) {
-            handler = new GetHandler(cacheEngine);
+            handler = new GetHandler(storageEngine);
         }
 
         return handler;
     }
 
-    private GetHandler(CacheEngine cacheEngine) {
-        super(cacheEngine);
+    private GetHandler(StorageEngine storageEngine) {
+        super(storageEngine);
     }
 
     @Override
@@ -37,6 +37,6 @@ public class GetHandler extends BaseHandler implements ICacheHandler<String> {
     @Override
     public String handle(Message input) {
         validateInput(input);
-        return cacheEngine.get(input.getKey());
+        return storageEngine.get(input.getKey());
     }
 }

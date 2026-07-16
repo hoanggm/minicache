@@ -2,23 +2,23 @@ package org.minicache.handler.cmd;
 
 import org.minicache.common.Command;
 import org.minicache.common.Message;
-import org.minicache.engine.CacheEngine;
+import org.minicache.engine.StorageEngine;
 import org.minicache.handler.BaseHandler;
 import org.minicache.handler.ICacheHandler;
 
 public class ClearHandler extends BaseHandler implements ICacheHandler<Integer> {
     private static ClearHandler handler;
 
-    public static ClearHandler getInstance(CacheEngine cacheEngine) {
+    public static ClearHandler getInstance(StorageEngine storageEngine) {
         if (handler == null) {
-            handler = new ClearHandler(cacheEngine);
+            handler = new ClearHandler(storageEngine);
         }
 
         return handler;
     }
 
-    private ClearHandler(CacheEngine cacheEngine) {
-        super(cacheEngine);
+    private ClearHandler(StorageEngine storageEngine) {
+        super(storageEngine);
     }
 
     @Override
@@ -34,6 +34,6 @@ public class ClearHandler extends BaseHandler implements ICacheHandler<Integer> 
     @Override
     public Integer handle(Message input) {
         validateInput(input);
-        return cacheEngine.clear(input.getCommand());
+        return storageEngine.clear(input.getCommand());
     }
 }

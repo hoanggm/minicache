@@ -2,23 +2,23 @@ package org.minicache.handler.cmd;
 
 import org.minicache.common.Command;
 import org.minicache.common.Message;
-import org.minicache.engine.CacheEngine;
+import org.minicache.engine.StorageEngine;
 import org.minicache.handler.BaseHandler;
 import org.minicache.handler.ICacheHandler;
 
 public class ZDelHandler extends BaseHandler implements ICacheHandler<Integer> {
     private static ZDelHandler handler;
 
-    public static ZDelHandler getInstance(CacheEngine cacheEngine) {
+    public static ZDelHandler getInstance(StorageEngine storageEngine) {
         if (handler == null) {
-            handler = new ZDelHandler(cacheEngine);
+            handler = new ZDelHandler(storageEngine);
         }
 
         return handler;
     }
 
-    private ZDelHandler(CacheEngine cacheEngine) {
-        super(cacheEngine);
+    private ZDelHandler(StorageEngine storageEngine) {
+        super(storageEngine);
     }
 
     @Override
@@ -37,6 +37,6 @@ public class ZDelHandler extends BaseHandler implements ICacheHandler<Integer> {
     @Override
     public Integer handle(Message input) {
         validateInput(input);
-        return cacheEngine.zDel(input.getKey());
+        return storageEngine.zDel(input.getKey());
     }
 }

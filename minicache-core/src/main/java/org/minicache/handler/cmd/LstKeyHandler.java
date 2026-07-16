@@ -2,23 +2,23 @@ package org.minicache.handler.cmd;
 
 import org.minicache.common.Command;
 import org.minicache.common.Message;
-import org.minicache.engine.CacheEngine;
+import org.minicache.engine.StorageEngine;
 import org.minicache.handler.BaseHandler;
 import org.minicache.handler.ICacheHandler;
 
 public class LstKeyHandler extends BaseHandler implements ICacheHandler<String> {
     private static LstKeyHandler handler;
 
-    public static LstKeyHandler getInstance(CacheEngine cacheEngine) {
+    public static LstKeyHandler getInstance(StorageEngine storageEngine) {
         if (handler == null) {
-            handler = new LstKeyHandler(cacheEngine);
+            handler = new LstKeyHandler(storageEngine);
         }
 
         return handler;
     }
 
-    private LstKeyHandler(CacheEngine cacheEngine) {
-        super(cacheEngine);
+    private LstKeyHandler(StorageEngine storageEngine) {
+        super(storageEngine);
     }
 
     @Override
@@ -34,6 +34,6 @@ public class LstKeyHandler extends BaseHandler implements ICacheHandler<String> 
     @Override
     public String handle(Message input) {
         validateInput(input);
-        return cacheEngine.getAllKeys(input.getCommand());
+        return storageEngine.getAllKeys(input.getCommand());
     }
 }

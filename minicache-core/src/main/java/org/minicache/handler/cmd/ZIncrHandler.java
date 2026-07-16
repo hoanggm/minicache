@@ -2,23 +2,23 @@ package org.minicache.handler.cmd;
 
 import org.minicache.common.Command;
 import org.minicache.common.Message;
-import org.minicache.engine.CacheEngine;
+import org.minicache.engine.StorageEngine;
 import org.minicache.handler.BaseHandler;
 import org.minicache.handler.ICacheHandler;
 
 public class ZIncrHandler extends BaseHandler implements ICacheHandler<Integer> {
     private static ZIncrHandler handler;
 
-    public static ZIncrHandler getInstance(CacheEngine cacheEngine) {
+    public static ZIncrHandler getInstance(StorageEngine storageEngine) {
         if (handler == null) {
-            handler = new ZIncrHandler(cacheEngine);
+            handler = new ZIncrHandler(storageEngine);
         }
 
         return handler;
     }
 
-    private ZIncrHandler(CacheEngine cacheEngine) {
-        super(cacheEngine);
+    private ZIncrHandler(StorageEngine storageEngine) {
+        super(storageEngine);
     }
 
     @Override
@@ -43,6 +43,6 @@ public class ZIncrHandler extends BaseHandler implements ICacheHandler<Integer> 
     @Override
     public Integer handle(Message input) {
         validateInput(input);
-        return cacheEngine.zIncrBy(input.getKey(), input.getZsScore(), input.getZsMember());
+        return storageEngine.zIncrBy(input.getKey(), input.getZsScore(), input.getZsMember());
     }
 }

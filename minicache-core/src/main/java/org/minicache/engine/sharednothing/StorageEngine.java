@@ -12,13 +12,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.*;
 
-public class CacheEngine extends org.minicache.engine.CacheEngine {
-    private static final Logger log = LogManager.getLogger(CacheEngine.class);
+public class StorageEngine extends org.minicache.engine.StorageEngine {
+    private static final Logger log = LogManager.getLogger(StorageEngine.class);
     private final int segmentMask;
     private final CacheSegment[] segments;
     private final Map<String, String> initCfg;
 
-    public CacheEngine(long maxSize) {
+    public StorageEngine(long maxSize) {
         var segmentCount = getOptimalSegmentCount();
         if ((segmentCount & (segmentCount - 1)) != 0) {
             throw new IllegalArgumentException();

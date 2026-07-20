@@ -382,7 +382,6 @@ public class RaftNode {
             entryIndex = logList.size();
             logList.add(new LogEntry(entryIndex, this.currentTerm, command));
         }
-        Thread.startVirtualThread(this::broadcastAppendEntries);
     }
 
     private synchronized void checkAndAdvanceCommitIndex() {

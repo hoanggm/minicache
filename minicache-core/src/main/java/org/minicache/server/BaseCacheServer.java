@@ -20,41 +20,41 @@ import java.util.function.Supplier;
 public abstract class BaseCacheServer {
     protected static final AtomicBoolean isRunning = new AtomicBoolean(true);
     protected static final HashMap<Command, Supplier<ICacheHandler<?>>> commandCacheHandler;
-    protected static final StorageEngine STORAGE_ENGINE;
+    protected static final StorageEngine engine;
     protected static ServerSocket socketServer;
     protected static List<Command> readCommands;
     protected static List<Command> writeCommands;
 
     static {
         if (AppConfig.STORAGE_TYPE.equals(AppConfig.STORAGE_TYPES.SEGMENT)) {
-            STORAGE_ENGINE = new org.minicache.engine.segment.StorageEngine(AppConfig.STORAGE_SIZE);
+            engine = new org.minicache.engine.segment.StorageEngine(AppConfig.STORAGE_SIZE);
         } else if (AppConfig.STORAGE_TYPE.equals(AppConfig.STORAGE_TYPES.SHARED_NOTHING)) {
-            STORAGE_ENGINE = new org.minicache.engine.sharednothing.StorageEngine(AppConfig.STORAGE_SIZE);
+            engine = new org.minicache.engine.sharednothing.StorageEngine(AppConfig.STORAGE_SIZE);
         } else {
-            STORAGE_ENGINE = new org.minicache.engine.single.StorageEngine(AppConfig.STORAGE_SIZE);
+            engine = new org.minicache.engine.single.StorageEngine(AppConfig.STORAGE_SIZE);
         }
 
         commandCacheHandler = new HashMap<>();
-        commandCacheHandler.put(Command.PUT, () -> PutHandler.getInstance(STORAGE_ENGINE));
-        commandCacheHandler.put(Command.GET, () -> GetHandler.getInstance(STORAGE_ENGINE));
-        commandCacheHandler.put(Command.DELETE, () -> DeleteHandler.getInstance(STORAGE_ENGINE));
-        commandCacheHandler.put(Command.EXISTS, () -> ExistsHandler.getInstance(STORAGE_ENGINE));
-        commandCacheHandler.put(Command.CLEAR, () -> ClearHandler.getInstance(STORAGE_ENGINE));
-        commandCacheHandler.put(Command.LST_KEY, () -> LstKeyHandler.getInstance(STORAGE_ENGINE));
-        commandCacheHandler.put(Command.BF_INIT, () -> BfInitHandler.getInstance(STORAGE_ENGINE));
-        commandCacheHandler.put(Command.BF_ADD, () -> BfAddHandler.getInstance(STORAGE_ENGINE));
-        commandCacheHandler.put(Command.BF_EXISTS, () -> BfExistsHandler.getInstance(STORAGE_ENGINE));
-        commandCacheHandler.put(Command.BF_RM, () -> BfRemoveHandler.getInstance(STORAGE_ENGINE));
-        commandCacheHandler.put(Command.BF_RS, () -> BfResetHandler.getInstance(STORAGE_ENGINE));
-        commandCacheHandler.put(Command.Z_SCR, () -> ZScoreHandler.getInstance(STORAGE_ENGINE));
-        commandCacheHandler.put(Command.Z_ADD, () -> ZAddHandler.getInstance(STORAGE_ENGINE));
-        commandCacheHandler.put(Command.Z_RANK, () -> ZRankHandler.getInstance(STORAGE_ENGINE));
-        commandCacheHandler.put(Command.Z_RM, () -> ZRemHandler.getInstance(STORAGE_ENGINE));
-        commandCacheHandler.put(Command.Z_DEL, () -> ZDelHandler.getInstance(STORAGE_ENGINE));
-        commandCacheHandler.put(Command.Z_INCR, () -> ZIncrHandler.getInstance(STORAGE_ENGINE));
-        commandCacheHandler.put(Command.Z_POS, () -> ZPosHandler.getInstance(STORAGE_ENGINE));
-        commandCacheHandler.put(Command.Z_RANGE, () -> ZRanHandler.getInstance(STORAGE_ENGINE));
-        commandCacheHandler.put(Command.Z_RSCR, () -> ZRanScoreHandler.getInstance(STORAGE_ENGINE));
+        commandCacheHandler.put(Command.PUT, () -> PutHandler.getInstance(engine));
+        commandCacheHandler.put(Command.GET, () -> GetHandler.getInstance(engine));
+        commandCacheHandler.put(Command.DELETE, () -> DeleteHandler.getInstance(engine));
+        commandCacheHandler.put(Command.EXISTS, () -> ExistsHandler.getInstance(engine));
+        commandCacheHandler.put(Command.CLEAR, () -> ClearHandler.getInstance(engine));
+        commandCacheHandler.put(Command.LST_KEY, () -> LstKeyHandler.getInstance(engine));
+        commandCacheHandler.put(Command.BF_INIT, () -> BfInitHandler.getInstance(engine));
+        commandCacheHandler.put(Command.BF_ADD, () -> BfAddHandler.getInstance(engine));
+        commandCacheHandler.put(Command.BF_EXISTS, () -> BfExistsHandler.getInstance(engine));
+        commandCacheHandler.put(Command.BF_RM, () -> BfRemoveHandler.getInstance(engine));
+        commandCacheHandler.put(Command.BF_RS, () -> BfResetHandler.getInstance(engine));
+        commandCacheHandler.put(Command.Z_SCR, () -> ZScoreHandler.getInstance(engine));
+        commandCacheHandler.put(Command.Z_ADD, () -> ZAddHandler.getInstance(engine));
+        commandCacheHandler.put(Command.Z_RANK, () -> ZRankHandler.getInstance(engine));
+        commandCacheHandler.put(Command.Z_RM, () -> ZRemHandler.getInstance(engine));
+        commandCacheHandler.put(Command.Z_DEL, () -> ZDelHandler.getInstance(engine));
+        commandCacheHandler.put(Command.Z_INCR, () -> ZIncrHandler.getInstance(engine));
+        commandCacheHandler.put(Command.Z_POS, () -> ZPosHandler.getInstance(engine));
+        commandCacheHandler.put(Command.Z_RANGE, () -> ZRanHandler.getInstance(engine));
+        commandCacheHandler.put(Command.Z_RSCR, () -> ZRanScoreHandler.getInstance(engine));
 
         readCommands = Arrays.asList(
                 Command.GET,
@@ -102,7 +102,7 @@ public abstract class BaseCacheServer {
             }
         }));
 
-        var cfgMap = STORAGE_ENGINE.getInitCfg();
+        var cfgMap = engine.getInitCfg();
         if (cfgMap != null) {
             log.info("CacheEngine-Info: Number of Segments={}", cfgMap.get("segmentCount"));
             log.info("[Max-Size-Per-Segment={} bytes, Expected-Keys-Per-Segment={}]",

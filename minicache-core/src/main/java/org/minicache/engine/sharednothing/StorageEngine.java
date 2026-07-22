@@ -542,8 +542,6 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
             return (ttl != null && ttl > 0) ? baseSize + 8 : baseSize;
         }
 
-        // --- BLOOM FILTER & SKIPLIST SHARD LOCAL LOGIC ---
-
         public String internalInitBloomFilter(String key, Integer expectedElements, Double falsePositiveRate) {
             checkAndAgeLocal();
             key = BLOOM_FILTERS_KEY_PREFIX + key;

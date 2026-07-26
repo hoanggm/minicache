@@ -6,6 +6,8 @@ import org.minicache.engine.StorageEngine;
 import org.minicache.handler.BaseHandler;
 import org.minicache.handler.ICacheHandler;
 
+import java.util.concurrent.CompletableFuture;
+
 public class ClearHandler extends BaseHandler implements ICacheHandler<Integer> {
     private static ClearHandler handler;
 
@@ -35,5 +37,11 @@ public class ClearHandler extends BaseHandler implements ICacheHandler<Integer> 
     public Integer handle(Message input) {
         validateInput(input);
         return storageEngine.clear(input.getCommand());
+    }
+
+    @Override
+    public CompletableFuture<Integer> handleAsync(Message input) {
+        validateInput(input);
+        return storageEngine.clearAsync(input.getCommand());
     }
 }

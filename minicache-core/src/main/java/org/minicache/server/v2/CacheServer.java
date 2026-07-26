@@ -2,6 +2,7 @@ package org.minicache.server.v2;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.minicache.common.AsyncMDC;
 import org.minicache.common.Command;
 import org.minicache.common.Message;
 import org.minicache.common.TraceContext;
@@ -121,28 +122,56 @@ public class CacheServer extends BaseCacheServer {
                                     msg.setZsStartScr(zsStartScr);
                                     msg.setZsStopScr(zsStopScr);
 
-                                    var response = commandCacheHandler
-                                            .get(cmd)
-                                            .get()
-                                            .handle(msg);
-                                    String resultStr = (response != null)
-                                            ? response.toString()
-                                            : "";
+                                    if (asyncResponse) {
+                                        Command finalCmd = cmd;
+                                        commandCacheHandler
+                                                .get(cmd)
+                                                .get()
+                                                .handleAsync(msg)
+                                                .thenAccept(AsyncMDC.wrap(response -> {
+                                                    String resultStr = (response != null)
+                                                            ? response.toString()
+                                                            : "";
 
-                                    if (resultStr.isEmpty()) {
-                                        sendBinaryResponse(out, (byte) 0x02, null);
-                                    } else if (resultStr.startsWith("E|") || resultStr.startsWith("ERR")) {
-                                        sendBinaryResponse(out, (byte) 0xFF, resultStr);
+                                                    if (resultStr.isEmpty()) {
+                                                        sendBinaryResponse(out, (byte) 0x02, null);
+                                                    } else if (resultStr.startsWith("E|") || resultStr.startsWith("ERR")) {
+                                                        sendBinaryResponse(out, (byte) 0xFF, resultStr);
+                                                    } else {
+                                                        if (finalCmd != Command.GET && CommonUtil.isInteger(resultStr)) {
+                                                            sendBinaryResponse(out, (byte) 0x03, resultStr);
+                                                        } else {
+                                                            sendBinaryResponse(out, (byte) 0x01, resultStr);
+                                                        }
+                                                    }
+
+                                                    var endTime = System.nanoTime();
+                                                    log.info("DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
+                                                }));
                                     } else {
-                                        if (cmd != Command.GET && CommonUtil.isInteger(resultStr)) {
-                                            sendBinaryResponse(out, (byte) 0x03, resultStr);
-                                        } else {
-                                            sendBinaryResponse(out, (byte) 0x01, resultStr);
-                                        }
-                                    }
+                                        var response = commandCacheHandler
+                                                .get(cmd)
+                                                .get()
+                                                .handle(msg);
+                                        String resultStr = (response != null)
+                                                ? response.toString()
+                                                : "";
 
-                                    var endTime = System.nanoTime();
-                                    log.info("DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
+                                        if (resultStr.isEmpty()) {
+                                            sendBinaryResponse(out, (byte) 0x02, null);
+                                        } else if (resultStr.startsWith("E|") || resultStr.startsWith("ERR")) {
+                                            sendBinaryResponse(out, (byte) 0xFF, resultStr);
+                                        } else {
+                                            if (cmd != Command.GET && CommonUtil.isInteger(resultStr)) {
+                                                sendBinaryResponse(out, (byte) 0x03, resultStr);
+                                            } else {
+                                                sendBinaryResponse(out, (byte) 0x01, resultStr);
+                                            }
+                                        }
+
+                                        var endTime = System.nanoTime();
+                                        log.info("DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
+                                    }
                                 }
                             } catch (IOException e) {
                                 throw new RuntimeException(e);

@@ -2,6 +2,7 @@ package org.minicache.engine.sharednothing;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.minicache.common.AsyncMDC;
 import org.minicache.common.Command;
 import org.minicache.common.Value;
 import org.minicache.struct.bloomfilter.BloomFilter;
@@ -11,6 +12,7 @@ import org.minicache.struct.freqsketch.FrequencySketch;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.function.Supplier;
 
 public class StorageEngine extends org.minicache.engine.StorageEngine {
     private static final Logger log = LogManager.getLogger(StorageEngine.class);
@@ -58,75 +60,55 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
     }
 
     private int getOptimalSegmentCount() {
-        // Số lượng Segment bằng đúng số Cores vật lý của CPU
         return Integer.highestOneBit(Runtime.getRuntime().availableProcessors());
     }
 
-    public String put(String key, String value, Long ttl, Boolean notExists) {
+    private <T> CompletableFuture<T> submitToShard(String key, Supplier<T> task) {
+        if (key == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        CacheSegment segment = getSegment(key);
+        Supplier<T> mdcTask = AsyncMDC.wrap(task);
+        CompletableFuture<T> future = new CompletableFuture<>();
+        segment.submitTask(() -> {
+            try {
+                future.complete(mdcTask.get());
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        return future;
+    }
+
+    public CompletableFuture<String> putAsync(String key, String value, Long ttl, Boolean notExists) {
         log.info("PUT ===> key: {}, value: {}, not_exists: {}, ttl: {}", key, value, notExists, ttl);
-        if (key == null || value == null) return "FAIL";
-
-        CacheSegment segment = getSegment(key);
-        CompletableFuture<String> future = new CompletableFuture<>();
-
-        segment.submitTask(() -> {
-            String res = segment.internalPut(key, value, ttl, notExists);
-            future.complete(res);
-        });
-
-        return future.join();
+        if (key == null || value == null) {
+            return CompletableFuture.completedFuture("FAIL");
+        }
+        return submitToShard(key, () -> getSegment(key).internalPut(key, value, ttl, notExists));
     }
 
-    public String get(String key) {
+    public CompletableFuture<String> getAsync(String key) {
         log.info("GET ===> key: {}", key);
-        if (key == null) return null;
-
-        CacheSegment segment = getSegment(key);
-        CompletableFuture<String> future = new CompletableFuture<>();
-
-        segment.submitTask(() -> {
-            String res = segment.internalGet(key);
-            future.complete(res);
-        });
-
-        return future.join();
+        return submitToShard(key, () -> getSegment(key).internalGet(key));
     }
 
-    public Integer delete(String key) {
+    public CompletableFuture<Integer> deleteAsync(String key) {
         log.info("DEL ===> key: {}", key);
-        if (key == null) return 0;
-
-        CacheSegment segment = getSegment(key);
-        CompletableFuture<Integer> future = new CompletableFuture<>();
-
-        segment.submitTask(() -> {
-            Integer res = segment.internalDelete(key);
-            future.complete(res);
-        });
-
-        return future.join();
+        return submitToShard(key, () -> getSegment(key).internalDelete(key));
     }
 
-    public Integer exists(String key) {
+    public CompletableFuture<Integer> existsAsync(String key) {
         log.info("EXISTS ===> key: {}", key);
-        if (key == null) return 0;
-
-        CacheSegment segment = getSegment(key);
-        CompletableFuture<Integer> future = new CompletableFuture<>();
-
-        segment.submitTask(() -> {
-            Integer res = segment.internalExists(key);
-            future.complete(res);
-        });
-
-        return future.join();
+        return submitToShard(key, () -> getSegment(key).internalExists(key));
     }
 
-    public Integer clear(Command command) {
+    public CompletableFuture<Integer> clearAsync(Command command) {
         log.info("CLEAR ===> Clear all keys and reset to default");
-        if (!Command.CLEAR.equals(command)) return 0;
+        if (!Command.CLEAR.equals(command)) {
+            return CompletableFuture.completedFuture(0);
+        }
 
-        // Broadcast lệnh clear đến tất cả các Shards một cách bất đồng bộ
         CompletableFuture<?>[] futures = new CompletableFuture[segments.length];
         for (int i = 0; i < segments.length; i++) {
             CompletableFuture<Void> f = new CompletableFuture<>();
@@ -137,190 +119,200 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
                 f.complete(null);
             });
         }
-        CompletableFuture.allOf(futures).join();
-        return 1;
+        return CompletableFuture.allOf(futures).thenApply(v -> 1);
     }
 
-    @SuppressWarnings("unchecked")
-    public String getAllKeys(Command command) {
+    public CompletableFuture<String> getAllKeysAsync(Command command) {
         log.info("KEYS ===> Fetch all keys");
-        if (!Command.LST_KEY.equals(command)) return "[]";
+        if (!Command.LST_KEY.equals(command)) {
+            return CompletableFuture.completedFuture("[]");
+        }
 
-        // Gom Key từ tất cả các Shards một cách an toàn thông qua Thread tương ứng
+        @SuppressWarnings("unchecked")
         CompletableFuture<List<String>>[] futures = new CompletableFuture[segments.length];
         for (int i = 0; i < segments.length; i++) {
-            CompletableFuture<List<String>> f = new CompletableFuture<>();
-            futures[i] = f;
+            CompletableFuture<List<String>> future = new CompletableFuture<>();
+            futures[i] = future;
             CacheSegment seg = segments[i];
             seg.submitTask(() -> {
                 List<String> shardKeys = new ArrayList<>();
                 shardKeys.addAll(seg.pairsStorage.keySet());
                 shardKeys.addAll(seg.bloomFiltersStorage.keySet());
                 shardKeys.addAll(seg.skipListsStorage.keySet());
-                f.complete(shardKeys);
+                future.complete(shardKeys);
             });
         }
 
-        CompletableFuture.allOf(futures).join();
-
-        StringBuilder keys = new StringBuilder("[");
-        boolean isFirst = true;
-        for (var f : futures) {
-            for (String key : f.join()) {
-                if (!isFirst) keys.append(",");
-                keys.append(key);
-                isFirst = false;
+        return CompletableFuture.allOf(futures).thenApply(v -> {
+            StringBuilder keys = new StringBuilder("[");
+            boolean isFirst = true;
+            for (var f : futures) {
+                for (String key : f.join()) {
+                    if (!isFirst) keys.append(",");
+                    keys.append(key);
+                    isFirst = false;
+                }
             }
+            keys.append("]");
+            return keys.toString();
+        });
+    }
+
+    public CompletableFuture<String> initBloomFilterAsync(String key, Integer expectedElements, Double falsePositiveRate) {
+        log.info("BF.INIT ===> key: {}, expectedElements: {}, falsePositiveRate: {}", key,
+                expectedElements, falsePositiveRate);
+        if (key == null || expectedElements == null || falsePositiveRate == null) {
+            return CompletableFuture.completedFuture("FAIL");
         }
-        keys.append("]");
-        return keys.toString();
+        return submitToShard(key, () -> getSegment(key).internalInitBloomFilter(key, expectedElements, falsePositiveRate));
+    }
+
+    public CompletableFuture<Integer> removeBloomFilterAsync(String key) {
+        log.info("BF.RM ===> key: {}", key);
+        return submitToShard(key, () -> getSegment(key).internalRemoveBloomFilter(key));
+    }
+
+    public CompletableFuture<String> addBloomFilterAsync(String key, String value) {
+        log.info("BF.ADD ===> key: {}, value: {}", key, value);
+        if (key == null || value == null) {
+            return CompletableFuture.completedFuture("FAIL");
+        }
+        return submitToShard(key, () -> getSegment(key).internalAddBloomFilter(key, value));
+    }
+
+    public CompletableFuture<Integer> existsBloomFilterAsync(String key, String value) {
+        log.info("BF.EXISTS ===> key: {}, value: {}", key, value);
+        return submitToShard(key, () -> getSegment(key).internalExistsBloomFilter(key, value));
+    }
+
+    public CompletableFuture<Integer> resetBloomFilterAsync(String key) {
+        log.info("BF.RS ===> key: {}", key);
+        return submitToShard(key, () -> getSegment(key).internalResetBloomFilter(key));
+    }
+
+    public CompletableFuture<String> zScoreAsync(String key, String member) {
+        log.info("Z.SCR ===> key: {}, member: {}", key, member);
+        return submitToShard(key, () -> getSegment(key).internalZScore(key, member));
+    }
+
+    public CompletableFuture<String> zGetByPositionAsync(String key, Integer index) {
+        log.info("Z.POS ===> key: {}, position: {}", key, index);
+        return submitToShard(key, () -> getSegment(key).internalZGetByPosition(key, index - 1));
+    }
+
+    public CompletableFuture<Integer> zIncrByAsync(String key, Double increment, String member) {
+        log.info("Z.INCR ===> key: {}, member: {}, increment: {}", key, member, increment);
+        return submitToShard(key, () -> getSegment(key).internalZIncrBy(key, increment, member));
+    }
+
+    public CompletableFuture<Integer> zRankAsync(String key, String member) {
+        log.info("Z.RANK ===> key: {}, member: {}", key, member);
+        return submitToShard(key, () -> getSegment(key).internalZRank(key, member));
+    }
+
+    public CompletableFuture<String> zAddAsync(String key, Double score, String member, String value) {
+        log.info("Z.ADD ===> key: {}, score: {}, member: {}, value: {}", key, score, member, value);
+        return submitToShard(key, () -> getSegment(key).internalZAdd(key, score, member, value));
+    }
+
+    public CompletableFuture<Integer> zRemAsync(String key, String member) {
+        log.info("Z.RM ===> key: {}, member: {}", key, member);
+        return submitToShard(key, () -> getSegment(key).internalZRem(key, member));
+    }
+
+    public CompletableFuture<Integer> zDelAsync(String key) {
+        log.info("Z.DEL ===> key: {}", key);
+        return submitToShard(key, () -> getSegment(key).internalZDel(key));
+    }
+
+    public CompletableFuture<String> zRangeByPositionsAsync(String key, Integer start, Integer stop) {
+        log.info("Z.RANGE ===> key: {}, start: {}, stop: {}", key, start, stop);
+        return submitToShard(key, () -> getSegment(key).internalZRangeByPositions(key, start - 1, stop - 1));
+    }
+
+    public CompletableFuture<String> zRangeByScoreAsync(String key, Double minScore, Double maxScore) {
+        log.info("Z.RSCR ===> key: {}, minScore: {}, maxScore: {}", key, minScore, maxScore);
+        return submitToShard(key, () -> getSegment(key).internalZRangeByScore(key, minScore, maxScore));
+    }
+
+    public String put(String key, String value, Long ttl, Boolean notExists) {
+        return null;
+    }
+
+    public String get(String key) {
+        return null;
+    }
+
+    public Integer delete(String key) {
+        return null;
+    }
+
+    public Integer exists(String key) {
+        return null;
+    }
+
+    public Integer clear(Command command) {
+        return null;
+    }
+
+    public String getAllKeys(Command command) {
+        return null;
     }
 
     public String initBloomFilter(String key, Integer expectedElements, Double falsePositiveRate) {
-        log.info("BF.INIT ===> key: {}, expectedElements: {}, falsePositiveRate: {}", key, expectedElements, falsePositiveRate);
-        if (key == null || expectedElements == null || falsePositiveRate == null) return "FAIL";
-
-        CacheSegment segment = getSegment(key);
-        CompletableFuture<String> future = new CompletableFuture<>();
-
-        segment.submitTask(() -> {
-            String res = segment.internalInitBloomFilter(key, expectedElements, falsePositiveRate);
-            future.complete(res);
-        });
-
-        return future.join();
+        return null;
     }
 
     public Integer removeBloomFilter(String key) {
-        log.info("BF.RM ===> key: {}", key);
-        if (key == null) return 0;
-
-        CacheSegment segment = getSegment(key);
-        CompletableFuture<Integer> future = new CompletableFuture<>();
-
-        segment.submitTask(() -> {
-            Integer res = segment.internalRemoveBloomFilter(key);
-            future.complete(res);
-        });
-
-        return future.join();
+        return null;
     }
 
     public String addBloomFilter(String key, String value) {
-        log.info("BF.ADD ===> key: {}, value: {}", key, value);
-        if (key == null || value == null) return "FAIL";
-
-        CacheSegment segment = getSegment(key);
-        CompletableFuture<String> future = new CompletableFuture<>();
-
-        segment.submitTask(() -> {
-            String res = segment.internalAddBloomFilter(key, value);
-            future.complete(res);
-        });
-
-        return future.join();
+        return null;
     }
 
     public Integer resetBloomFilter(String key) {
-        log.info("BF.RS ===> key: {}", key);
-        if (key == null) return 0;
-
-        CacheSegment segment = getSegment(key);
-        CompletableFuture<Integer> future = new CompletableFuture<>();
-
-        segment.submitTask(() -> {
-            Integer res = segment.internalResetBloomFilter(key);
-            future.complete(res);
-        });
-
-        return future.join();
+        return null;
     }
 
     public Integer existsBloomFilter(String key, String value) {
-        log.info("BF.EXISTS ===> key: {}, value: {}", key, value);
-        if (key == null) return 0;
-
-        CacheSegment segment = getSegment(key);
-        CompletableFuture<Integer> future = new CompletableFuture<>();
-
-        segment.submitTask(() -> {
-            Integer res = segment.internalExistsBloomFilter(key, value);
-            future.complete(res);
-        });
-
-        return future.join();
+        return null;
     }
 
     public String zRangeByPositions(String key, Integer start, Integer stop) {
-        log.info("Z.RANGE ===> key: {}, start: {}, stop: {}", key, start, stop);
-        CacheSegment segment = getSegment(key);
-        CompletableFuture<String> future = new CompletableFuture<>();
-        segment.submitTask(() -> future.complete(segment.internalZRangeByPositions(key, start - 1, stop - 1)));
-        return future.join();
+        return null;
     }
 
     public String zRangeByScore(String key, Double minScore, Double maxScore) {
-        log.info("Z.RSCR ===> key: {}, minScore: {}, maxScore: {}", key, minScore, maxScore);
-        CacheSegment segment = getSegment(key);
-        CompletableFuture<String> future = new CompletableFuture<>();
-        segment.submitTask(() -> future.complete(segment.internalZRangeByScore(key, minScore, maxScore)));
-        return future.join();
+        return null;
     }
 
     public String zGetByPosition(String key, Integer index) {
-        log.info("Z.POS ===> key: {}, position: {}", key, index);
-        CacheSegment segment = getSegment(key);
-        CompletableFuture<String> future = new CompletableFuture<>();
-        segment.submitTask(() -> future.complete(segment.internalZGetByPosition(key, index - 1)));
-        return future.join();
+        return null;
     }
 
     public Integer zIncrBy(String key, Double increment, String member) {
-        log.info("Z.INCR ===> key: {}, member: {}, increment: {}", key, member, increment);
-        CacheSegment segment = getSegment(key);
-        CompletableFuture<Integer> future = new CompletableFuture<>();
-        segment.submitTask(() -> future.complete(segment.internalZIncrBy(key, increment, member)));
-        return future.join();
+        return null;
     }
 
     public Integer zRem(String key, String member) {
-        log.info("Z.RM ===> key: {}", key);
-        CacheSegment segment = getSegment(key);
-        CompletableFuture<Integer> future = new CompletableFuture<>();
-        segment.submitTask(() -> future.complete(segment.internalZRem(key, member)));
-        return future.join();
+        return null;
     }
 
     public Integer zDel(String key) {
-        log.info("Z.DEL ===> key: {}", key);
-        CacheSegment segment = getSegment(key);
-        CompletableFuture<Integer> future = new CompletableFuture<>();
-        segment.submitTask(() -> future.complete(segment.internalZDel(key)));
-        return future.join();
+        return null;
     }
 
     public Integer zRank(String key, String member) {
-        log.info("Z.RANK ===> key: {}, member: {}", key, member);
-        CacheSegment segment = getSegment(key);
-        CompletableFuture<Integer> future = new CompletableFuture<>();
-        segment.submitTask(() -> future.complete(segment.internalZRank(key, member)));
-        return future.join();
+        return null;
     }
 
     public String zAdd(String key, Double score, String member, String value) {
-        log.info("Z.ADD ===> key: {}, score: {}, member: {}, value: {}", key, score, member, value);
-        CacheSegment segment = getSegment(key);
-        CompletableFuture<String> future = new CompletableFuture<>();
-        segment.submitTask(() -> future.complete(segment.internalZAdd(key, score, member, value)));
-        return future.join();
+        return null;
     }
 
     public String zScore(String key, String member) {
-        log.info("Z.SCR ===> key: {}, member: {}", key, member);
-        CacheSegment segment = getSegment(key);
-        CompletableFuture<String> future = new CompletableFuture<>();
-        segment.submitTask(() -> future.complete(segment.internalZScore(key, member)));
-        return future.join();
+        return null;
     }
 
     private static class CacheSegment {

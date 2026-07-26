@@ -6,6 +6,8 @@ import org.minicache.engine.StorageEngine;
 import org.minicache.handler.BaseHandler;
 import org.minicache.handler.ICacheHandler;
 
+import java.util.concurrent.CompletableFuture;
+
 public class BfExistsHandler extends BaseHandler implements ICacheHandler<Integer> {
     private static BfExistsHandler handler;
 
@@ -38,5 +40,11 @@ public class BfExistsHandler extends BaseHandler implements ICacheHandler<Intege
     public Integer handle(Message input) {
         validateInput(input);
         return storageEngine.existsBloomFilter(input.getKey(), input.getValue());
+    }
+
+    @Override
+    public CompletableFuture<Integer> handleAsync(Message input) {
+        validateInput(input);
+        return storageEngine.existsBloomFilterAsync(input.getKey(), input.getValue());
     }
 }

@@ -2,6 +2,7 @@ package org.minicache.server.v1;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.minicache.common.AsyncMDC;
 import org.minicache.common.Command;
 import org.minicache.common.Message;
 import org.minicache.server.BaseCacheServer;
@@ -50,13 +51,25 @@ public class CacheServer extends BaseCacheServer {
                                         continue;
                                     }
 
-                                    var response = commandCacheHandler
-                                            .get(cmd)
-                                            .get()
-                                            .handle(message);
-                                    var endTime = System.nanoTime();
-                                    log.info("DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
-                                    writer.println(formatMcpResponse(cmd, response));
+                                    if (asyncResponse) {
+                                        commandCacheHandler
+                                                .get(cmd)
+                                                .get()
+                                                .handleAsync(message)
+                                                .thenAccept(AsyncMDC.wrap(response -> {
+                                                    var endTime = System.nanoTime();
+                                                    log.info("DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
+                                                    writer.println(formatMcpResponse(cmd, response));
+                                                }));
+                                    } else {
+                                        var response = commandCacheHandler
+                                                .get(cmd)
+                                                .get()
+                                                .handle(message);
+                                        var endTime = System.nanoTime();
+                                        log.info("DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
+                                        writer.println(formatMcpResponse(cmd, response));
+                                    }
                                 }
                             } catch (IOException e) {
                                 throw new RuntimeException(e);

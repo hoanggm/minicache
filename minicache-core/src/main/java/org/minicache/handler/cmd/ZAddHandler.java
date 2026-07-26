@@ -6,6 +6,8 @@ import org.minicache.engine.StorageEngine;
 import org.minicache.handler.BaseHandler;
 import org.minicache.handler.ICacheHandler;
 
+import java.util.concurrent.CompletableFuture;
+
 public class ZAddHandler extends BaseHandler implements ICacheHandler<String> {
     private static ZAddHandler handler;
 
@@ -47,5 +49,11 @@ public class ZAddHandler extends BaseHandler implements ICacheHandler<String> {
     public String handle(Message input) {
         validateInput(input);
         return storageEngine.zAdd(input.getKey(), input.getZsScore(), input.getZsMember(), input.getValue());
+    }
+
+    @Override
+    public CompletableFuture<String> handleAsync(Message input) {
+        validateInput(input);
+        return storageEngine.zAddAsync(input.getKey(), input.getZsScore(), input.getZsMember(), input.getValue());
     }
 }

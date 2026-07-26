@@ -6,6 +6,8 @@ import org.minicache.engine.StorageEngine;
 import org.minicache.handler.BaseHandler;
 import org.minicache.handler.ICacheHandler;
 
+import java.util.concurrent.CompletableFuture;
+
 public class ZRemHandler extends BaseHandler implements ICacheHandler<Integer> {
     private static ZRemHandler handler;
 
@@ -41,5 +43,11 @@ public class ZRemHandler extends BaseHandler implements ICacheHandler<Integer> {
     public Integer handle(Message input) {
         validateInput(input);
         return storageEngine.zRem(input.getKey(), input.getZsMember());
+    }
+
+    @Override
+    public CompletableFuture<Integer> handleAsync(Message input) {
+        validateInput(input);
+        return storageEngine.zRemAsync(input.getKey(), input.getZsMember());
     }
 }

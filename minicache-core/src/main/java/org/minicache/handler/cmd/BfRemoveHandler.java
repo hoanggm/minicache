@@ -6,6 +6,8 @@ import org.minicache.engine.StorageEngine;
 import org.minicache.handler.BaseHandler;
 import org.minicache.handler.ICacheHandler;
 
+import java.util.concurrent.CompletableFuture;
+
 public class BfRemoveHandler extends BaseHandler implements ICacheHandler<Integer> {
     private static BfRemoveHandler handler;
 
@@ -38,5 +40,11 @@ public class BfRemoveHandler extends BaseHandler implements ICacheHandler<Intege
     public Integer handle(Message input) {
         validateInput(input);
         return storageEngine.removeBloomFilter(input.getKey());
+    }
+
+    @Override
+    public CompletableFuture<Integer> handleAsync(Message input) {
+        validateInput(input);
+        return storageEngine.removeBloomFilterAsync(input.getKey());
     }
 }

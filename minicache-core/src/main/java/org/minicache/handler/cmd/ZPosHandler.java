@@ -6,6 +6,8 @@ import org.minicache.engine.StorageEngine;
 import org.minicache.handler.BaseHandler;
 import org.minicache.handler.ICacheHandler;
 
+import java.util.concurrent.CompletableFuture;
+
 public class ZPosHandler extends BaseHandler implements ICacheHandler<String> {
     private static ZPosHandler handler;
 
@@ -41,5 +43,11 @@ public class ZPosHandler extends BaseHandler implements ICacheHandler<String> {
     public String handle(Message input) {
         validateInput(input);
         return storageEngine.zGetByPosition(input.getKey(), input.getZsIdx());
+    }
+
+    @Override
+    public CompletableFuture<String> handleAsync(Message input) {
+        validateInput(input);
+        return storageEngine.zGetByPositionAsync(input.getKey(), input.getZsIdx());
     }
 }

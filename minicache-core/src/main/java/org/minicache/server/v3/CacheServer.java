@@ -2,6 +2,7 @@ package org.minicache.server.v3;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.minicache.common.AsyncMDC;
 import org.minicache.common.Command;
 import org.minicache.common.Message;
 import org.minicache.common.TraceContext;
@@ -63,12 +64,25 @@ public class CacheServer extends BaseCacheServer {
                     msg.setZsScore(Double.valueOf(tokens[7]));
                     msg.setZsMember(tokens[8]);
 
-                    commandCacheHandler.get(msg.getCommand())
-                            .get()
-                            .handle(msg);
-                    var endTime = System.nanoTime();
-                    log.info("[STATE-MACHINE] WRITE DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
-                    log.info("[STATE-MACHINE] Successfully applied replicated write command to CacheEngine: <{}>", msg.getCommand());
+                    if (asyncResponse) {
+                        commandCacheHandler.get(msg.getCommand())
+                                .get()
+                                .handleAsync(msg)
+                                .thenAccept((res) -> {
+                                    var endTime = System.nanoTime();
+                                    log.info("[STATE-MACHINE] WRITE DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
+                                    log.info("[STATE-MACHINE] Successfully applied replicated write command to CacheEngine: <{}>",
+                                            msg.getCommand());
+                                });
+                    } else {
+                        commandCacheHandler.get(msg.getCommand())
+                                .get()
+                                .handle(msg);
+                        var endTime = System.nanoTime();
+                        log.info("[STATE-MACHINE] WRITE DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
+                        log.info("[STATE-MACHINE] Successfully applied replicated write command to CacheEngine: <{}>",
+                                msg.getCommand());
+                    }
                 } catch (Exception e) {
                     log.error("[STATE-MACHINE] Error processing command: " + commandStr, e);
                 }
@@ -95,7 +109,7 @@ public class CacheServer extends BaseCacheServer {
         try {
             socketServer = new ServerSocket();
             socketServer.setReuseAddress(true);
-            socketServer.setSoTimeout(30000);
+            socketServer.setSoTimeout(10000);
             socketServer.bind(new InetSocketAddress(Optional.ofNullable(port).orElse(80)));
 
             // Start Raft network
@@ -207,21 +221,45 @@ public class CacheServer extends BaseCacheServer {
                                         msg.setZsStartScr(zsStartScr);
                                         msg.setZsStopScr(zsStopScr);
 
-                                        var response = commandCacheHandler.get(cmd).get().handle(msg);
-                                        String resultStr = (response != null) ? response.toString() : "";
+                                        if (asyncResponse) {
+                                            Command finalCmd = cmd;
+                                            commandCacheHandler
+                                                    .get(cmd)
+                                                    .get()
+                                                    .handleAsync(msg)
+                                                    .thenAccept(AsyncMDC.wrap(response -> {
+                                                        String resultStr = (response != null) ? response.toString() : "";
 
-                                        if (resultStr.isEmpty()) {
-                                            sendBinaryResponse(out, (byte) 0x02, null);
+                                                        if (resultStr.isEmpty()) {
+                                                            sendBinaryResponse(out, (byte) 0x02, null);
+                                                        } else {
+                                                            if (finalCmd != Command.GET && CommonUtil.isInteger(resultStr)) {
+                                                                sendBinaryResponse(out, (byte) 0x03, resultStr);
+                                                            } else {
+                                                                sendBinaryResponse(out, (byte) 0x01, resultStr);
+                                                            }
+                                                        }
+
+                                                        var endTime = System.nanoTime();
+                                                        log.info("READ DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
+                                                    }));
                                         } else {
-                                            if (cmd != Command.GET && CommonUtil.isInteger(resultStr)) {
-                                                sendBinaryResponse(out, (byte) 0x03, resultStr);
-                                            } else {
-                                                sendBinaryResponse(out, (byte) 0x01, resultStr);
-                                            }
-                                        }
+                                            var response = commandCacheHandler.get(cmd).get().handle(msg);
+                                            String resultStr = (response != null) ? response.toString() : "";
 
-                                        var endTime = System.nanoTime();
-                                        log.info("READ DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
+                                            if (resultStr.isEmpty()) {
+                                                sendBinaryResponse(out, (byte) 0x02, null);
+                                            } else {
+                                                if (cmd != Command.GET && CommonUtil.isInteger(resultStr)) {
+                                                    sendBinaryResponse(out, (byte) 0x03, resultStr);
+                                                } else {
+                                                    sendBinaryResponse(out, (byte) 0x01, resultStr);
+                                                }
+                                            }
+
+                                            var endTime = System.nanoTime();
+                                            log.info("READ DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
+                                        }
                                     } else if (writeCommands.contains(cmd)) {
                                         // Quy tắc Raft: Nếu node nhận lệnh không phải Leader
                                         // -> Từ chối thẳng để bảo vệ tính nhất quán
@@ -249,35 +287,70 @@ public class CacheServer extends BaseCacheServer {
                                         msg.setZsStartScr(zsStartScr);
                                         msg.setZsStopScr(zsStopScr);
 
-                                        var response = commandCacheHandler
-                                                .get(cmd)
-                                                .get()
-                                                .handle(msg);
-                                        String resultStr = (response != null)
-                                                ? response.toString()
-                                                : "";
-                                        if (resultStr.startsWith("E|") || resultStr.startsWith("ERR")) {
-                                            sendBinaryResponse(out, (byte) 0xFF, resultStr);
+                                        if (asyncResponse) {
+                                            Command finalCmd = cmd;
+                                            commandCacheHandler
+                                                    .get(cmd)
+                                                    .get()
+                                                    .handleAsync(msg)
+                                                    .thenAccept(AsyncMDC.wrap(response -> {
+                                                        String resultStr = (response != null)
+                                                                ? response.toString()
+                                                                : "";
+                                                        if (resultStr.startsWith("E|") || resultStr.startsWith("ERR")) {
+                                                            sendBinaryResponse(out, (byte) 0xFF, resultStr);
+                                                        } else {
+                                                            if (CommonUtil.isInteger(resultStr)) {
+                                                                sendBinaryResponse(out, (byte) 0x03, resultStr);
+                                                            } else {
+                                                                sendBinaryResponse(out, (byte) 0x01, resultStr);
+                                                            }
+                                                        }
+
+                                                        // Định dạng dữ liệu thành chuỗi đặc tả Log duy nhất chuyển sang cho tầng mạng Raft
+                                                        String raftCommandStr = String.format("%s|%s|%s|%d|%b|%d|%f|%f|%s",
+                                                                finalCmd.name(), key, value,
+                                                                (long) timeToLive, notExists == 1,
+                                                                bloomExpectedKeys, bloomFalsePositiveRate,
+                                                                zsScore, zsMember);
+
+                                                        // Đồng bộ sang các node khác
+                                                        raftNode.propose(raftCommandStr);
+
+                                                        var endTime = System.nanoTime();
+                                                        log.info("WRITE DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
+                                                    }));
                                         } else {
-                                            if (CommonUtil.isInteger(resultStr)) {
-                                                sendBinaryResponse(out, (byte) 0x03, resultStr);
+                                            var response = commandCacheHandler
+                                                    .get(cmd)
+                                                    .get()
+                                                    .handle(msg);
+                                            String resultStr = (response != null)
+                                                    ? response.toString()
+                                                    : "";
+                                            if (resultStr.startsWith("E|") || resultStr.startsWith("ERR")) {
+                                                sendBinaryResponse(out, (byte) 0xFF, resultStr);
                                             } else {
-                                                sendBinaryResponse(out, (byte) 0x01, resultStr);
+                                                if (CommonUtil.isInteger(resultStr)) {
+                                                    sendBinaryResponse(out, (byte) 0x03, resultStr);
+                                                } else {
+                                                    sendBinaryResponse(out, (byte) 0x01, resultStr);
+                                                }
                                             }
+
+                                            // Định dạng dữ liệu thành chuỗi đặc tả Log duy nhất chuyển sang cho tầng mạng Raft
+                                            String raftCommandStr = String.format("%s|%s|%s|%d|%b|%d|%f|%f|%s",
+                                                    cmd.name(), key, value,
+                                                    (long) timeToLive, notExists == 1,
+                                                    bloomExpectedKeys, bloomFalsePositiveRate,
+                                                    zsScore, zsMember);
+
+                                            // Đồng bộ sang các node khác
+                                            raftNode.propose(raftCommandStr);
+
+                                            var endTime = System.nanoTime();
+                                            log.info("WRITE DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
                                         }
-
-                                        // Định dạng dữ liệu thành chuỗi đặc tả Log duy nhất chuyển sang cho tầng mạng Raft
-                                        String raftCommandStr = String.format("%s|%s|%s|%d|%b|%d|%f|%f|%s",
-                                                cmd.name(), key, value,
-                                                (long) timeToLive, notExists == 1,
-                                                bloomExpectedKeys, bloomFalsePositiveRate,
-                                                zsScore, zsMember);
-
-                                        // Đồng bộ sang các node khác
-                                        raftNode.propose(raftCommandStr);
-
-                                        var endTime = System.nanoTime();
-                                        log.info("WRITE DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
                                     }
                                 }
                             } catch (IOException e) {

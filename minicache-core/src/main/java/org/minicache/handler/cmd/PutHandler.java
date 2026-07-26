@@ -6,6 +6,8 @@ import org.minicache.engine.StorageEngine;
 import org.minicache.handler.BaseHandler;
 import org.minicache.handler.ICacheHandler;
 
+import java.util.concurrent.CompletableFuture;
+
 public class PutHandler extends BaseHandler implements ICacheHandler<String> {
     private static PutHandler handler;
 
@@ -39,6 +41,13 @@ public class PutHandler extends BaseHandler implements ICacheHandler<String> {
 
     @Override
     public String handle(Message input) {
+        validateInput(input);
         return storageEngine.put(input.getKey(), input.getValue(), input.getTtl(), input.getNotExists());
+    }
+
+    @Override
+    public CompletableFuture<String> handleAsync(Message input) {
+        validateInput(input);
+        return storageEngine.putAsync(input.getKey(), input.getValue(), input.getTtl(), input.getNotExists());
     }
 }

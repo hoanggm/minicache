@@ -6,6 +6,8 @@ import org.minicache.engine.StorageEngine;
 import org.minicache.handler.BaseHandler;
 import org.minicache.handler.ICacheHandler;
 
+import java.util.concurrent.CompletableFuture;
+
 public class LstKeyHandler extends BaseHandler implements ICacheHandler<String> {
     private static LstKeyHandler handler;
 
@@ -35,5 +37,11 @@ public class LstKeyHandler extends BaseHandler implements ICacheHandler<String> 
     public String handle(Message input) {
         validateInput(input);
         return storageEngine.getAllKeys(input.getCommand());
+    }
+
+    @Override
+    public CompletableFuture<String> handleAsync(Message input) {
+        validateInput(input);
+        return storageEngine.getAllKeysAsync(input.getCommand());
     }
 }

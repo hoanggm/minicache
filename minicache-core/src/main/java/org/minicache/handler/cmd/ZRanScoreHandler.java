@@ -6,6 +6,8 @@ import org.minicache.engine.StorageEngine;
 import org.minicache.handler.BaseHandler;
 import org.minicache.handler.ICacheHandler;
 
+import java.util.concurrent.CompletableFuture;
+
 public class ZRanScoreHandler extends BaseHandler implements ICacheHandler<String> {
     private static ZRanScoreHandler handler;
 
@@ -44,5 +46,11 @@ public class ZRanScoreHandler extends BaseHandler implements ICacheHandler<Strin
     public String handle(Message input) {
         validateInput(input);
         return storageEngine.zRangeByScore(input.getKey(), input.getZsStartScr(), input.getZsStopScr());
+    }
+
+    @Override
+    public CompletableFuture<String> handleAsync(Message input) {
+        validateInput(input);
+        return storageEngine.zRangeByScoreAsync(input.getKey(), input.getZsStartScr(), input.getZsStopScr());
     }
 }

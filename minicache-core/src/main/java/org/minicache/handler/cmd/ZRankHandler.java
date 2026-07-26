@@ -6,6 +6,8 @@ import org.minicache.engine.StorageEngine;
 import org.minicache.handler.BaseHandler;
 import org.minicache.handler.ICacheHandler;
 
+import java.util.concurrent.CompletableFuture;
+
 public class ZRankHandler extends BaseHandler implements ICacheHandler<Integer> {
     private static ZRankHandler handler;
 
@@ -41,5 +43,11 @@ public class ZRankHandler extends BaseHandler implements ICacheHandler<Integer> 
     public Integer handle(Message input) {
         validateInput(input);
         return storageEngine.zRank(input.getKey(), input.getZsMember());
+    }
+
+    @Override
+    public CompletableFuture<Integer> handleAsync(Message input) {
+        validateInput(input);
+        return storageEngine.zRankAsync(input.getKey(), input.getZsMember());
     }
 }

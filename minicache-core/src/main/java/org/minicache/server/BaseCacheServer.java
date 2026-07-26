@@ -24,14 +24,18 @@ public abstract class BaseCacheServer {
     protected static ServerSocket socketServer;
     protected static List<Command> readCommands;
     protected static List<Command> writeCommands;
+    protected static final boolean asyncResponse;
 
     static {
         if (AppConfig.STORAGE_TYPE.equals(AppConfig.STORAGE_TYPES.SEGMENT)) {
             engine = new org.minicache.engine.segment.StorageEngine(AppConfig.STORAGE_SIZE);
+            asyncResponse = false;
         } else if (AppConfig.STORAGE_TYPE.equals(AppConfig.STORAGE_TYPES.SHARED_NOTHING)) {
             engine = new org.minicache.engine.sharednothing.StorageEngine(AppConfig.STORAGE_SIZE);
+            asyncResponse = true;
         } else {
             engine = new org.minicache.engine.single.StorageEngine(AppConfig.STORAGE_SIZE);
+            asyncResponse = false;
         }
 
         commandCacheHandler = new HashMap<>();

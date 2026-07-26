@@ -3,6 +3,7 @@ package org.minicache.engine;
 import org.minicache.common.Command;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 public abstract class StorageEngine {
     public abstract Map<String, String> getInitCfg();
@@ -46,4 +47,84 @@ public abstract class StorageEngine {
     public abstract String zRangeByPositions(String key, Integer start, Integer stop);
 
     public abstract String zRangeByScore(String key, Double minScore, Double maxScore);
+
+    public CompletableFuture<String> putAsync(String key, String value, Long ttl, Boolean notExists) {
+        return CompletableFuture.completedFuture(put(key, value, ttl, notExists));
+    }
+
+    public CompletableFuture<String> getAsync(String key) {
+        return CompletableFuture.completedFuture(get(key));
+    }
+
+    public CompletableFuture<Integer> deleteAsync(String key) {
+        return CompletableFuture.completedFuture(delete(key));
+    }
+
+    public CompletableFuture<Integer> existsAsync(String key) {
+        return CompletableFuture.completedFuture(exists(key));
+    }
+
+    public CompletableFuture<Integer> clearAsync(Command command) {
+        return CompletableFuture.completedFuture(clear(command));
+    }
+
+    public CompletableFuture<String> getAllKeysAsync(Command command) {
+        return CompletableFuture.completedFuture(getAllKeys(command));
+    }
+
+    public CompletableFuture<String> initBloomFilterAsync(String key, Integer expectedElements, Double falsePositiveRate) {
+        return CompletableFuture.completedFuture(initBloomFilter(key, expectedElements, falsePositiveRate));
+    }
+
+    public CompletableFuture<Integer> removeBloomFilterAsync(String key) {
+        return CompletableFuture.completedFuture(removeBloomFilter(key));
+    }
+
+    public CompletableFuture<String> addBloomFilterAsync(String key, String value) {
+        return CompletableFuture.completedFuture(addBloomFilter(key, value));
+    }
+
+    public CompletableFuture<Integer> existsBloomFilterAsync(String key, String value) {
+        return CompletableFuture.completedFuture(existsBloomFilter(key, value));
+    }
+
+    public CompletableFuture<Integer> resetBloomFilterAsync(String key) {
+        return CompletableFuture.completedFuture(resetBloomFilter(key));
+    }
+
+    public CompletableFuture<String> zScoreAsync(String key, String member) {
+        return CompletableFuture.completedFuture(zScore(key, member));
+    }
+
+    public CompletableFuture<String> zGetByPositionAsync(String key, Integer index) {
+        return CompletableFuture.completedFuture(zGetByPosition(key, index));
+    }
+
+    public CompletableFuture<Integer> zIncrByAsync(String key, Double increment, String member) {
+        return CompletableFuture.completedFuture(zIncrBy(key, increment, member));
+    }
+
+    public CompletableFuture<Integer> zRankAsync(String key, String member) {
+        return CompletableFuture.completedFuture(zRank(key, member));
+    }
+
+    public CompletableFuture<String> zAddAsync(String key, Double score, String member, String value) {
+        return CompletableFuture.completedFuture(zAdd(key, score, member, value));
+    }
+
+    public CompletableFuture<Integer> zRemAsync(String key, String member) {
+        return CompletableFuture.completedFuture(zRem(key, member));
+    }
+
+    public CompletableFuture<Integer> zDelAsync(String key) {
+        return CompletableFuture.completedFuture(zDel(key));
+    }
+
+    public CompletableFuture<String> zRangeByPositionsAsync(String key, Integer start, Integer stop) {
+        return CompletableFuture.completedFuture(zRangeByPositions(key, start, stop));
+    }
+
+    public CompletableFuture<String> zRangeByScoreAsync(String key, Double minScore, Double maxScore) {
+        return CompletableFuture.completedFuture(zRangeByScore(key, minScore, maxScore));
+    }
 }

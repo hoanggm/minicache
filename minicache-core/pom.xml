@@ -16,6 +16,7 @@
         <slf4j.api.version>1.7.36</slf4j.api.version>
         <log4j.version>2.24.1</log4j.version>
         <commons.validator.version>1.9.0</commons.validator.version>
+        <com.lmax.disruptor.version>3.4.4</com.lmax.disruptor.version>
     </properties>
 
     <dependencies>
@@ -38,6 +39,11 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>${slf4j.api.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.lmax</groupId>
+            <artifactId>disruptor</artifactId>
+            <version>${com.lmax.disruptor.version}</version>
         </dependency>
     </dependencies>
 

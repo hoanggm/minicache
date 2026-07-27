@@ -114,7 +114,8 @@ public class CacheServer extends BaseCacheServer {
 
             // Start Raft network
             List<String> clusterNodes = Arrays.asList(clusterNodesEnv.split(","));
-            raftNode = new RaftNode(nodeId, clusterNodes, stateMachine, log, true);
+            raftNode = new RaftNode(nodeId, clusterNodes, stateMachine, log, true,
+                    AppConfig.LOG_BATCH_SIZE);
             raftNode.start();
 
             try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
@@ -307,6 +308,9 @@ public class CacheServer extends BaseCacheServer {
                                                             }
                                                         }
 
+                                                        var endTime = System.nanoTime();
+                                                        log.info("WRITE DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
+
                                                         // Định dạng dữ liệu thành chuỗi đặc tả Log duy nhất chuyển sang cho tầng mạng Raft
                                                         String raftCommandStr = String.format("%s|%s|%s|%d|%b|%d|%f|%f|%s",
                                                                 finalCmd.name(), key, value,
@@ -316,9 +320,6 @@ public class CacheServer extends BaseCacheServer {
 
                                                         // Đồng bộ sang các node khác
                                                         raftNode.propose(raftCommandStr);
-
-                                                        var endTime = System.nanoTime();
-                                                        log.info("WRITE DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
                                                     }));
                                         } else {
                                             var response = commandCacheHandler
@@ -338,6 +339,9 @@ public class CacheServer extends BaseCacheServer {
                                                 }
                                             }
 
+                                            var endTime = System.nanoTime();
+                                            log.info("WRITE DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
+
                                             // Định dạng dữ liệu thành chuỗi đặc tả Log duy nhất chuyển sang cho tầng mạng Raft
                                             String raftCommandStr = String.format("%s|%s|%s|%d|%b|%d|%f|%f|%s",
                                                     cmd.name(), key, value,
@@ -347,9 +351,6 @@ public class CacheServer extends BaseCacheServer {
 
                                             // Đồng bộ sang các node khác
                                             raftNode.propose(raftCommandStr);
-
-                                            var endTime = System.nanoTime();
-                                            log.info("WRITE DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
                                         }
                                     }
                                 }

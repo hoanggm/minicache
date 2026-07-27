@@ -10,6 +10,7 @@ public class AppConfig {
     public static String STORAGE_TYPE;
     public static String NODE_ID;
     public static String CLUSTER_NODES;
+    public static Integer LOG_BATCH_SIZE;
 
     static {
         Properties prop = new Properties();
@@ -30,6 +31,12 @@ public class AppConfig {
             if (VERSION.equals(VERSIONS.V3)) {
                 NODE_ID = System.getenv("NODE_ID");
                 CLUSTER_NODES = System.getenv("CLUSTER_NODES");
+                LOG_BATCH_SIZE = System.getenv("LOG_BATCH_SIZE") != null
+                        ? Integer.valueOf(System.getenv("LOG_BATCH_SIZE"))
+                        : Integer.valueOf(prop.getProperty("server.log-batch-size"));
+                if (LOG_BATCH_SIZE <= 0) {
+                    LOG_BATCH_SIZE = 10;
+                }
             }
             if (STORAGE_TYPE == null) {
                 STORAGE_TYPE = STORAGE_TYPES.SINGLE;
@@ -37,6 +44,8 @@ public class AppConfig {
         } catch (Exception ex) {
             STORAGE_SIZE = 500;
             PORT = 80;
+            STORAGE_TYPE = STORAGE_TYPES.SINGLE;
+            VERSION = VERSIONS.V2;
         }
     }
 

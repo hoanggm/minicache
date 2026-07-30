@@ -7,8 +7,6 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.Temporal;
 
 public class CommonUtil {
-    private static final Logger log = LogManager.getLogger(CommonUtil.class);
-
     private CommonUtil() {
     }
 

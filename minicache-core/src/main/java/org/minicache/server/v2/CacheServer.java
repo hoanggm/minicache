@@ -67,6 +67,12 @@ public class CacheServer extends BaseCacheServer {
                                     int zsStopIdx = in.readInt();
                                     String zsMember = in.readUTF();
 
+                                    String geoMem = in.readUTF();
+                                    double geoLat = in.readDouble();
+                                    double geoLon = in.readDouble();
+                                    String geoMem2 = in.readUTF();
+                                    double geoRadius = in.readDouble();
+
                                     var startTime = System.nanoTime();
                                     if (opcode == 0x01) {
                                         sendBinaryResponse(out, (byte) 0x00, "PONG");
@@ -99,6 +105,11 @@ public class CacheServer extends BaseCacheServer {
                                         case 0x18 -> cmd = Command.Z_RSCR;
                                         case 0x19 -> cmd = Command.Z_RM;
                                         case 0x20 -> cmd = Command.Z_DEL;
+                                        case 0x22 -> cmd = Command.GEO_ADD;
+                                        case 0x23 -> cmd = Command.GEO_SEARCH;
+                                        case 0x24 -> cmd = Command.GEO_DIST;
+                                        case 0x25 -> cmd = Command.GEO_DEL;
+                                        case 0x26 -> cmd = Command.GEO_RM;
                                     }
 
                                     if (cmd == null || !commandCacheHandler.containsKey(cmd)) {
@@ -121,6 +132,11 @@ public class CacheServer extends BaseCacheServer {
                                     msg.setZsScore(zsScore);
                                     msg.setZsStartScr(zsStartScr);
                                     msg.setZsStopScr(zsStopScr);
+                                    msg.setGeoMem(geoMem);
+                                    msg.setGeoLat(geoLat);
+                                    msg.setGeoLon(geoLon);
+                                    msg.setGeoMem2(geoMem2);
+                                    msg.setGeoRadius(geoRadius);
 
                                     if (asyncResponse) {
                                         Command finalCmd = cmd;

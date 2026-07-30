@@ -59,6 +59,11 @@ public abstract class BaseCacheServer {
         commandCacheHandler.put(Command.Z_POS, () -> ZPosHandler.getInstance(engine));
         commandCacheHandler.put(Command.Z_RANGE, () -> ZRanHandler.getInstance(engine));
         commandCacheHandler.put(Command.Z_RSCR, () -> ZRanScoreHandler.getInstance(engine));
+        commandCacheHandler.put(Command.GEO_ADD, () -> GeoAddHandler.getInstance(engine));
+        commandCacheHandler.put(Command.GEO_DEL, () -> GeoDelHandler.getInstance(engine));
+        commandCacheHandler.put(Command.GEO_RM, () -> GeoRmHandler.getInstance(engine));
+        commandCacheHandler.put(Command.GEO_SEARCH, () -> GeoSearchHandler.getInstance(engine));
+        commandCacheHandler.put(Command.GEO_DIST, () -> GeoDistHandler.getInstance(engine));
 
         readCommands = Arrays.asList(
                 Command.GET,
@@ -69,7 +74,9 @@ public abstract class BaseCacheServer {
                 Command.Z_POS,
                 Command.Z_RSCR,
                 Command.Z_RANK,
-                Command.Z_RANGE
+                Command.Z_RANGE,
+                Command.GEO_SEARCH,
+                Command.GEO_DIST
         );
 
         writeCommands = Arrays.asList(
@@ -83,7 +90,10 @@ public abstract class BaseCacheServer {
                 Command.Z_RM,
                 Command.Z_DEL,
                 Command.Z_INCR,
-                Command.Z_ADD
+                Command.Z_ADD,
+                Command.GEO_ADD,
+                Command.GEO_DEL,
+                Command.GEO_RM
         );
     }
 

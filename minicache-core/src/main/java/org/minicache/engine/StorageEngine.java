@@ -48,6 +48,16 @@ public abstract class StorageEngine {
 
     public abstract String zRangeByScore(String key, Double minScore, Double maxScore);
 
+    public abstract String geoAdd(String key, String member, Double lat, Double lon);
+
+    public abstract String geoSearch(String key, Double centerLat, Double centerLon, Double radiusMeters);
+
+    public abstract String geoDist(String key, String member1, String member2);
+
+    public abstract Integer geoDel(String key);
+
+    public abstract Integer geoRem(String key, String member);
+
     public CompletableFuture<String> putAsync(String key, String value, Long ttl, Boolean notExists) {
         return CompletableFuture.completedFuture(put(key, value, ttl, notExists));
     }
@@ -126,5 +136,25 @@ public abstract class StorageEngine {
 
     public CompletableFuture<String> zRangeByScoreAsync(String key, Double minScore, Double maxScore) {
         return CompletableFuture.completedFuture(zRangeByScore(key, minScore, maxScore));
+    }
+
+    public CompletableFuture<String> geoAddAsync(String key, String member, Double lat, Double lon) {
+        return CompletableFuture.completedFuture(geoAdd(key, member, lat, lon));
+    }
+
+    public CompletableFuture<Integer> geoDelAsync(String key) {
+        return CompletableFuture.completedFuture(geoDel(key));
+    }
+
+    public CompletableFuture<Integer> geoRemAsync(String key, String member) {
+        return CompletableFuture.completedFuture(geoRem(key, member));
+    }
+
+    public CompletableFuture<String> geoSearchAsync(String key, Double centerLat, Double centerLon, Double radiusMeters) {
+        return CompletableFuture.completedFuture(geoSearch(key, centerLat, centerLon, radiusMeters));
+    }
+
+    public CompletableFuture<String> geoDistAsync(String key, String member1, String member2) {
+        return CompletableFuture.completedFuture(geoDist(key, member1, member2));
     }
 }

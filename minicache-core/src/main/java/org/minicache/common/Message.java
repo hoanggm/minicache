@@ -15,6 +15,11 @@ public class Message {
     private Integer zsStopIdx;
     private Double zsStartScr;
     private Double zsStopScr;
+    private Double geoLat;
+    private Double geoLon;
+    private String geoMem;
+    private String geoMem2;
+    private Double geoRadius;
 
     public Command getCommand() {
         return command;
@@ -126,5 +131,45 @@ public class Message {
 
     public void setZsStopScr(Double zsStopScr) {
         this.zsStopScr = zsStopScr;
+    }
+
+    public Double getGeoLat() {
+        return geoLat;
+    }
+
+    public void setGeoLat(Double geoLat) {
+        this.geoLat = geoLat;
+    }
+
+    public Double getGeoLon() {
+        return geoLon;
+    }
+
+    public void setGeoLon(Double geoLon) {
+        this.geoLon = geoLon;
+    }
+
+    public String getGeoMem() {
+        return geoMem;
+    }
+
+    public void setGeoMem(String geoMem) {
+        this.geoMem = geoMem;
+    }
+
+    public String getGeoMem2() {
+        return geoMem2;
+    }
+
+    public void setGeoMem2(String geoMem2) {
+        this.geoMem2 = geoMem2;
+    }
+
+    public Double getGeoRadius() {
+        return geoRadius;
+    }
+
+    public void setGeoRadius(Double geoRadius) {
+        this.geoRadius = geoRadius;
     }
 }

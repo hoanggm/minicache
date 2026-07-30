@@ -35,7 +35,7 @@ public class AppConfig {
                         ? Integer.valueOf(System.getenv("LOG_BATCH_SIZE"))
                         : Integer.valueOf(prop.getProperty("server.log-batch-size"));
                 if (LOG_BATCH_SIZE <= 0) {
-                    LOG_BATCH_SIZE = 10;
+                    LOG_BATCH_SIZE = 5;
                 }
             }
             if (STORAGE_TYPE == null) {

@@ -92,12 +92,13 @@ public class CacheServer extends BaseCacheServer {
         if (result == null) return "N|";
 
         return switch (cmd) {
-            case PUT, BF_ADD, BF_INIT, Z_POS, Z_ADD, Z_RSCR, Z_RANGE, Z_SCR -> "S|" + result;
-            case GET, LST_KEY -> {
+            case PUT, BF_ADD, BF_INIT, Z_POS, Z_ADD, Z_RSCR, Z_RANGE, Z_SCR, GEO_ADD -> "S|" + result;
+            case GET, LST_KEY, GEO_SEARCH, GEO_DIST -> {
                 String value = (String) result;
                 yield "D|" + value.length() + "|" + value;
             }
-            case DELETE, EXISTS, CLEAR, BF_EXISTS, BF_RM, BF_RS, Z_INCR, Z_RANK, Z_DEL, Z_RM -> "I|" + result;
+            case DELETE, EXISTS, CLEAR, BF_EXISTS, BF_RM, BF_RS, Z_INCR, Z_RANK, Z_DEL, Z_RM, GEO_DEL, GEO_RM ->
+                    "I|" + result;
         };
     }
 
@@ -278,6 +279,45 @@ public class CacheServer extends BaseCacheServer {
                 if (tokens.size() == 2) {
                     msg.setCommand(Command.Z_DEL);
                     msg.setKey(tokens.get(1));
+                }
+                break;
+            case "GEO.ADD":
+                if (tokens.size() == 5) {
+                    msg.setCommand(Command.GEO_ADD);
+                    msg.setKey(tokens.get(1));
+                    msg.setGeoMem(tokens.get(2));
+                    msg.setGeoLat(Double.valueOf(tokens.get(3)));
+                    msg.setGeoLon(Double.valueOf(tokens.get(4)));
+                }
+                break;
+            case "GEO.SEARCH":
+                if (tokens.size() == 5) {
+                    msg.setCommand(Command.GEO_SEARCH);
+                    msg.setKey(tokens.get(1));
+                    msg.setGeoLat(Double.valueOf(tokens.get(2)));
+                    msg.setGeoLon(Double.valueOf(tokens.get(3)));
+                    msg.setGeoRadius(Double.valueOf(tokens.get(4)));
+                }
+                break;
+            case "GEO.DIST":
+                if (tokens.size() == 4) {
+                    msg.setCommand(Command.GEO_DIST);
+                    msg.setKey(tokens.get(1));
+                    msg.setGeoMem(tokens.get(2));
+                    msg.setGeoMem2(tokens.get(3));
+                }
+                break;
+            case "GEO.DEL":
+                if (tokens.size() == 2) {
+                    msg.setCommand(Command.GEO_DEL);
+                    msg.setKey(tokens.get(1));
+                }
+                break;
+            case "GEO.RM":
+                if (tokens.size() == 3) {
+                    msg.setCommand(Command.GEO_RM);
+                    msg.setKey(tokens.get(1));
+                    msg.setGeoMem(tokens.get(2));
                 }
                 break;
         }

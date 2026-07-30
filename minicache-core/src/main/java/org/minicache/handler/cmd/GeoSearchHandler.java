@@ -1,0 +1,59 @@
+package org.minicache.handler.cmd;
+
+import org.minicache.common.Command;
+import org.minicache.common.Message;
+import org.minicache.engine.StorageEngine;
+import org.minicache.handler.BaseHandler;
+import org.minicache.handler.ICacheHandler;
+
+import java.util.concurrent.CompletableFuture;
+
+public class GeoSearchHandler extends BaseHandler implements ICacheHandler<String> {
+    private static GeoSearchHandler handler;
+
+    public static GeoSearchHandler getInstance(StorageEngine storageEngine) {
+        if (handler == null) {
+            handler = new GeoSearchHandler(storageEngine);
+        }
+
+        return handler;
+    }
+
+    private GeoSearchHandler(StorageEngine storageEngine) {
+        super(storageEngine);
+    }
+
+    @Override
+    public void validateInput(Message message) {
+        if (message == null) {
+            throw new RuntimeException();
+        }
+        if (!Command.GEO_SEARCH.equals(message.getCommand())) {
+            throw new RuntimeException();
+        }
+        if (message.getKey() == null || message.getKey().isBlank()) {
+            throw new RuntimeException();
+        }
+        if (message.getGeoRadius() == null) {
+            throw new RuntimeException();
+        }
+        if (message.getGeoLat() == null) {
+            throw new RuntimeException();
+        }
+        if (message.getGeoLon() == null) {
+            throw new RuntimeException();
+        }
+    }
+
+    @Override
+    public String handle(Message input) {
+        validateInput(input);
+        return storageEngine.geoSearch(input.getKey(), input.getGeoLat(), input.getGeoLon(), input.getGeoRadius());
+    }
+
+    @Override
+    public CompletableFuture<String> handleAsync(Message input) {
+        validateInput(input);
+        return storageEngine.geoSearchAsync(input.getKey(), input.getGeoLat(), input.getGeoLon(), input.getGeoRadius());
+    }
+}

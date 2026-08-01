@@ -59,11 +59,16 @@ public abstract class BaseCacheServer {
         commandCacheHandler.put(Command.Z_POS, () -> ZPosHandler.getInstance(engine));
         commandCacheHandler.put(Command.Z_RANGE, () -> ZRanHandler.getInstance(engine));
         commandCacheHandler.put(Command.Z_RSCR, () -> ZRanScoreHandler.getInstance(engine));
+        commandCacheHandler.put(Command.Z_TOP, () -> ZTopHandler.getInstance(engine));
         commandCacheHandler.put(Command.GEO_ADD, () -> GeoAddHandler.getInstance(engine));
         commandCacheHandler.put(Command.GEO_DEL, () -> GeoDelHandler.getInstance(engine));
         commandCacheHandler.put(Command.GEO_RM, () -> GeoRmHandler.getInstance(engine));
         commandCacheHandler.put(Command.GEO_SEARCH, () -> GeoSearchHandler.getInstance(engine));
         commandCacheHandler.put(Command.GEO_DIST, () -> GeoDistHandler.getInstance(engine));
+        commandCacheHandler.put(Command.GEO_GET, () -> GeoGetHandler.getInstance(engine));
+        commandCacheHandler.put(Command.GEO_NB, () -> GeoNbHandler.getInstance(engine));
+        commandCacheHandler.put(Command.GEO_EXISTS, () -> GeoExistsHandler.getInstance(engine));
+        commandCacheHandler.put(Command.GEO_ENCODE, () -> GeoEncodeHandler.getInstance(engine));
 
         readCommands = Arrays.asList(
                 Command.GET,
@@ -75,8 +80,13 @@ public abstract class BaseCacheServer {
                 Command.Z_RSCR,
                 Command.Z_RANK,
                 Command.Z_RANGE,
+                Command.Z_TOP,
                 Command.GEO_SEARCH,
-                Command.GEO_DIST
+                Command.GEO_DIST,
+                Command.GEO_GET,
+                Command.GEO_NB,
+                Command.GEO_EXISTS,
+                Command.GEO_ENCODE
         );
 
         writeCommands = Arrays.asList(

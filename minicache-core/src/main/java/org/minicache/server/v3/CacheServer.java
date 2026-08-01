@@ -175,6 +175,8 @@ public class CacheServer extends BaseCacheServer {
                                     String geoMem2 = in.readUTF();
                                     double geoRadius = in.readDouble();
 
+                                    int limit = in.readInt();
+
                                     if (opcode == 0x01) {
                                         if (raftNode.getLeader().equals(raftNode.getNodeId())) {
                                             sendBinaryResponse(out, (byte) 0x00, "LEADER");
@@ -208,12 +210,17 @@ public class CacheServer extends BaseCacheServer {
                                         case 0x17 -> cmd = Command.Z_INCR;
                                         case 0x18 -> cmd = Command.Z_RSCR;
                                         case 0x19 -> cmd = Command.Z_RM;
+                                        case 0x29 -> cmd = Command.Z_TOP;
                                         case 0x20 -> cmd = Command.Z_DEL;
                                         case 0x22 -> cmd = Command.GEO_ADD;
                                         case 0x23 -> cmd = Command.GEO_SEARCH;
                                         case 0x24 -> cmd = Command.GEO_DIST;
                                         case 0x25 -> cmd = Command.GEO_DEL;
                                         case 0x26 -> cmd = Command.GEO_RM;
+                                        case 0x27 -> cmd = Command.GEO_GET;
+                                        case 0x28 -> cmd = Command.GEO_NB;
+                                        case 0x30 -> cmd = Command.GEO_EXISTS;
+                                        case 0x31 -> cmd = Command.GEO_ENCODE;
                                     }
 
                                     if (cmd == null || !commandCacheHandler.containsKey(cmd)) {
@@ -240,6 +247,7 @@ public class CacheServer extends BaseCacheServer {
                                         msg.setGeoLon(geoLon);
                                         msg.setGeoMem2(geoMem2);
                                         msg.setGeoRadius(geoRadius);
+                                        msg.setLimit(limit);
 
                                         if (asyncResponse) {
                                             Command finalCmd = cmd;

@@ -5,6 +5,7 @@ public class Message {
     private String key;
     private String value;
     private Long ttl;
+    private Integer limit;
     private Boolean notExists;
     private Integer bloomFilterExpectedElements;
     private Double bloomFilterFalsePositiveRate;
@@ -171,5 +172,13 @@ public class Message {
 
     public void setGeoRadius(Double geoRadius) {
         this.geoRadius = geoRadius;
+    }
+
+    public Integer getLimit() {
+        return limit;
+    }
+
+    public void setLimit(Integer limit) {
+        this.limit = limit;
     }
 }

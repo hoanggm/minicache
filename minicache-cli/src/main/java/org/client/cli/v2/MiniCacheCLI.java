@@ -44,7 +44,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                     sendBinaryRequest(out, (byte) 0x01, null, null, "0", "0",
                             null, null, null,
                             null, null, null, null, null, null,
-                            null, null, null, null, null);
+                            null, null, null, null, null, null);
                 }
                 case "GET" -> {
                     if (parts.length < 2) {
@@ -54,7 +54,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                     sendBinaryRequest(out, (byte) 0x02, parts[1], null, "0", "0",
                             null, null, null, null,
                             null, null, null, null, null,
-                            null, null, null, null, null);
+                            null, null, null, null, null, null);
                 }
                 case "EXISTS" -> {
                     if (parts.length < 2) {
@@ -64,7 +64,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                     sendBinaryRequest(out, (byte) 0x06, parts[1], null, "0", "0",
                             null, null, null, null,
                             null, null, null, null, null,
-                            null, null, null, null, null);
+                            null, null, null, null, null, null);
                 }
                 case "SET" -> {
                     if (parts.length < 3) {
@@ -77,7 +77,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                     sendBinaryRequest(out, (byte) 0x03, parts[1], parts[2], notExists, ttl,
                             null, null, null, null,
                             null, null, null, null, null,
-                            null, null, null, null, null);
+                            null, null, null, null, null, null);
                 }
                 case "DEL" -> {
                     if (parts.length < 2) {
@@ -87,25 +87,25 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                     sendBinaryRequest(out, (byte) 0x04, parts[1], null, "0", "0",
                             null, null, null, null,
                             null, null, null, null, null,
-                            null, null, null, null, null);
+                            null, null, null, null, null, null);
                 }
                 case "KEYS" -> {
                     sendBinaryRequest(out, (byte) 0x05, null, null, "0", "0",
                             null, null, null, null,
                             null, null, null, null, null,
-                            null, null, null, null, null);
+                            null, null, null, null, null, null);
                 }
                 case "CLEAR" -> {
                     sendBinaryRequest(out, (byte) 0x07, null, null, "0", "0",
                             null, null, null, null,
                             null, null, null, null, null,
-                            null, null, null, null, null);
+                            null, null, null, null, null, null);
                 }
                 case "EXIT" -> {
                     sendBinaryRequest(out, (byte) 0x00, null, null, "0", "0",
                             null, null, null, null,
                             null, null, null, null, null,
-                            null, null, null, null, null);
+                            null, null, null, null, null, null);
                 }
                 case "BF.INIT" -> {
                     if (parts.length < 4) {
@@ -115,7 +115,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                     sendBinaryRequest(out, (byte) 0x08, parts[1], null, "0", "0",
                             parts[2], parts[3], null, null,
                             null, null, null, null, null,
-                            null, null, null, null, null);
+                            null, null, null, null, null, null);
                 }
                 case "BF.ADD" -> {
                     if (parts.length < 3) {
@@ -125,7 +125,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                     sendBinaryRequest(out, (byte) 0x09, parts[1], parts[2], "0", "0",
                             null, null, null, null,
                             null, null, null, null, null,
-                            null, null, null, null, null);
+                            null, null, null, null, null, null);
                 }
                 case "BF.EXISTS" -> {
                     if (parts.length < 2) {
@@ -135,7 +135,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                     sendBinaryRequest(out, (byte) 0x10, parts[1], (parts.length == 3) ? parts[2] : null, "0", "0",
                             null, null, null, null,
                             null, null, null, null, null,
-                            null, null, null, null, null);
+                            null, null, null, null, null, null);
                 }
                 case "BF.RM" -> {
                     if (parts.length < 2) {
@@ -145,7 +145,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                     sendBinaryRequest(out, (byte) 0x11, parts[1], null, "0", "0",
                             null, null, null, null,
                             null, null, null, null, null,
-                            null, null, null, null, null);
+                            null, null, null, null, null, null);
                 }
                 case "BF.RS" -> {
                     if (parts.length < 2) {
@@ -155,7 +155,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                     sendBinaryRequest(out, (byte) 0x12, parts[1], null, "0", "0",
                             null, null, null, null,
                             null, null, null, null, null,
-                            null, null, null, null, null);
+                            null, null, null, null, null, null);
                 }
                 case "Z.SCR" -> {
                     if (parts.length < 3) {
@@ -165,7 +165,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                     sendBinaryRequest(out, (byte) 0x21, parts[1], null, "0", "0",
                             null, null, parts[2], null,
                             null, null, null, null, null,
-                            null, null, null, null, null);
+                            null, null, null, null, null, null);
                 }
                 case "Z.ADD" -> {
                     if (parts.length < 5) {
@@ -175,7 +175,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                     sendBinaryRequest(out, (byte) 0x13, parts[1], parts[4], "0", "0",
                             null, null, parts[3], null,
                             null, null, parts[2], null, null,
-                            null, null, null, null, null);
+                            null, null, null, null, null, null);
                 }
                 case "Z.RANK" -> {
                     if (parts.length < 3) {
@@ -185,7 +185,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                     sendBinaryRequest(out, (byte) 0x16, parts[1], null, "0", "0",
                             null, null, parts[2], null,
                             null, null, null, null, null,
-                            null, null, null, null, null);
+                            null, null, null, null, null, null);
                 }
                 case "Z.RANGE" -> {
                     if (parts.length < 4) {
@@ -195,7 +195,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                     sendBinaryRequest(out, (byte) 0x15, parts[1], null, "0", "0",
                             null, null, null, null,
                             parts[2], parts[3], null, null, null,
-                            null, null, null, null, null);
+                            null, null, null, null, null, null);
                 }
                 case "Z.RSCR" -> {
                     if (parts.length < 4) {
@@ -205,7 +205,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                     sendBinaryRequest(out, (byte) 0x18, parts[1], null, "0", "0",
                             null, null, null, null,
                             null, null, null, parts[2], parts[3],
-                            null, null, null, null, null);
+                            null, null, null, null, null, null);
                 }
                 case "Z.POS" -> {
                     if (parts.length < 3) {
@@ -214,8 +214,8 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                     }
                     sendBinaryRequest(out, (byte) 0x14, parts[1], null, "0", "0",
                             null, null, null, parts[2],
-                            null, null, null,null, null,
-                            null, null, null, null, null);
+                            null, null, null, null, null,
+                            null, null, null, null, null, null);
                 }
                 case "Z.INCR" -> {
                     if (parts.length < 4) {
@@ -224,8 +224,8 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                     }
                     sendBinaryRequest(out, (byte) 0x17, parts[1], null, "0", "0",
                             null, null, parts[2], null,
-                            null, null, parts[3],null, null,
-                            null, null, null, null, null);
+                            null, null, parts[3], null, null,
+                            null, null, null, null, null, null);
                 }
                 case "Z.RM" -> {
                     if (parts.length < 3) {
@@ -234,8 +234,18 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                     }
                     sendBinaryRequest(out, (byte) 0x19, parts[1], null, "0", "0",
                             null, null, parts[2], null,
-                            null, null, null,null, null,
-                            null, null, null, null, null);
+                            null, null, null, null, null,
+                            null, null, null, null, null, null);
+                }
+                case "Z.TOP" -> {
+                    if (parts.length < 3) {
+                        log.info("(error) ERR Invalid command. Syntax: Z.TOP <key> <top>");
+                        return;
+                    }
+                    sendBinaryRequest(out, (byte) 0x29, parts[1], null, "0", "0",
+                            null, null, parts[2], null,
+                            parts[2], null, null, null, null,
+                            null, null, null, null, null, null);
                 }
                 case "Z.DEL" -> {
                     if (parts.length < 2) {
@@ -244,8 +254,8 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                     }
                     sendBinaryRequest(out, (byte) 0x20, parts[1], null, "0", "0",
                             null, null, null, null,
-                            null, null, null,null, null,
-                            null, null, null, null, null);
+                            null, null, null, null, null,
+                            null, null, null, null, null, null);
                 }
                 case "GEO.ADD" -> {
                     if (parts.length < 5) {
@@ -254,18 +264,19 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                     }
                     sendBinaryRequest(out, (byte) 0x22, parts[1], null, "0", "0",
                             null, null, null, null,
-                            null, null, null,null, null,
-                            parts[2], parts[3], parts[4], null, null);
+                            null, null, null, null, null,
+                            parts[2], parts[3], parts[4], null, null, null);
                 }
                 case "GEO.SEARCH" -> {
                     if (parts.length < 5) {
-                        log.info("(error) ERR Invalid command. Syntax: GEO.SEARCH <key> <lat> <lon> <radius>");
+                        log.info("(error) ERR Invalid command. Syntax: GEO.SEARCH <key> <lat> <lon> <radius_meters> <limit>");
                         return;
                     }
+                    String limit = (parts.length > 5) ? parts[5] : "0";
                     sendBinaryRequest(out, (byte) 0x23, parts[1], null, "0", "0",
                             null, null, null, null,
-                            null, null, null,null, null,
-                            null, parts[2], parts[3], null, parts[4]);
+                            null, null, null, null, null,
+                            null, parts[2], parts[3], null, parts[4], limit);
                 }
                 case "GEO.DIST" -> {
                     if (parts.length < 4) {
@@ -274,8 +285,8 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                     }
                     sendBinaryRequest(out, (byte) 0x24, parts[1], null, "0", "0",
                             null, null, null, null,
-                            null, null, null,null, null,
-                            parts[2], null, null, parts[3], null);
+                            null, null, null, null, null,
+                            parts[2], null, null, parts[3], null, null);
                 }
                 case "GEO.DEL" -> {
                     if (parts.length < 2) {
@@ -284,8 +295,8 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                     }
                     sendBinaryRequest(out, (byte) 0x25, parts[1], null, "0", "0",
                             null, null, null, null,
-                            null, null, null,null, null,
-                            null, null, null, null, null);
+                            null, null, null, null, null,
+                            null, null, null, null, null, null);
                 }
                 case "GEO.RM" -> {
                     if (parts.length < 3) {
@@ -294,8 +305,48 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                     }
                     sendBinaryRequest(out, (byte) 0x26, parts[1], null, "0", "0",
                             null, null, null, null,
-                            null, null, null,null, null,
-                            parts[2], null, null, null, null);
+                            null, null, null, null, null,
+                            parts[2], null, null, null, null, null);
+                }
+                case "GEO.GET" -> {
+                    if (parts.length < 3) {
+                        log.info("(error) ERR Invalid command. Syntax: GEO.GET <key> <member>");
+                        return;
+                    }
+                    sendBinaryRequest(out, (byte) 0x27, parts[1], null, "0", "0",
+                            null, null, null, null,
+                            null, null, null, null, null,
+                            parts[2], null, null, null, null, null);
+                }
+                case "GEO.NB" -> {
+                    if (parts.length < 3) {
+                        log.info("(error) ERR Invalid command. Syntax: GEO.NB <key> <member>");
+                        return;
+                    }
+                    sendBinaryRequest(out, (byte) 0x28, parts[1], null, "0", "0",
+                            null, null, null, null,
+                            null, null, null, null, null,
+                            parts[2], null, null, null, null, null);
+                }
+                case "GEO.EXISTS" -> {
+                    if (parts.length < 3) {
+                        log.info("(error) ERR Invalid command. Syntax: GEO.EXISTS <key> <member>");
+                        return;
+                    }
+                    sendBinaryRequest(out, (byte) 0x30, parts[1], null, "0", "0",
+                            null, null, null, null,
+                            null, null, null, null, null,
+                            parts[2], null, null, null, null, null);
+                }
+                case "GEO.ENCODE" -> {
+                    if (parts.length < 3) {
+                        log.info("(error) ERR Invalid command. Syntax: GEO.ENCODE <key> <member>");
+                        return;
+                    }
+                    sendBinaryRequest(out, (byte) 0x31, parts[1], null, "0", "0",
+                            null, null, null, null,
+                            null, null, null, null, null,
+                            parts[2], null, null, null, null, null);
                 }
                 default -> {
                     log.info("(error) ERR Invalid command: '{}'", action);
@@ -359,7 +410,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                                           String zsIdx, String zsStartIdx, String zsStopIdx,
                                           String zsScore, String zsStartScr, String zsStopScr,
                                           String geoMem, String geoLat, String geoLon,
-                                          String geoMem2, String geoRadius) {
+                                          String geoMem2, String geoRadius, String limit) {
         try {
             var keyBytes = (key != null)
                     ? key.getBytes(StandardCharsets.UTF_8)
@@ -416,6 +467,8 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
             out.writeDouble(geoLon != null ? Double.parseDouble(geoLon) : 0d);
             out.writeUTF(geoMem2 != null ? geoMem2 : "");
             out.writeDouble(geoRadius != null ? Double.parseDouble(geoRadius) : 0d);
+
+            out.writeInt(limit != null ? Integer.parseInt(limit) : 0);
 
             out.flush();
         } catch (Exception ex) {

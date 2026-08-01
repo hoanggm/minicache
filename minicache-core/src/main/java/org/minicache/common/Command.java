@@ -20,10 +20,15 @@ public enum Command {
     Z_RANK,
     Z_RM,
     Z_DEL,
+    Z_TOP,
     Z_RANGE,
     GEO_ADD,
     GEO_DEL,
     GEO_DIST,
     GEO_RM,
-    GEO_SEARCH
+    GEO_SEARCH,
+    GEO_GET,
+    GEO_NB,
+    GEO_EXISTS,
+    GEO_ENCODE
 }

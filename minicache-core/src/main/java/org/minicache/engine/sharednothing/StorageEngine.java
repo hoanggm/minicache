@@ -220,6 +220,11 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
         return submitToShard(key, () -> getSegment(key).internalZAdd(key, score, member, value));
     }
 
+    public CompletableFuture<String> zAddAsync(String key, Integer top) {
+        log.info("Z.TOP ===> key: {}, top: {}", key, top);
+        return submitToShard(key, () -> getSegment(key).internalZTop(key, top));
+    }
+
     public CompletableFuture<Integer> zRemAsync(String key, String member) {
         log.info("Z.RM ===> key: {}, member: {}", key, member);
         return submitToShard(key, () -> getSegment(key).internalZRem(key, member));
@@ -255,15 +260,35 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
         return submitToShard(key, () -> getSegment(key).internalGeoRm(key, member));
     }
 
-    public CompletableFuture<String> geoSearchAsync(String key, Double centerLat, Double centerLon, Double radiusMeters) {
-        log.info("GEO.SEARCH ===> key: {}, lat: {}, lon: {}, radius: {}", key,
-                centerLat, centerLon, radiusMeters);
-        return submitToShard(key, () -> getSegment(key).internalGeoSearch(key, centerLat, centerLon, radiusMeters));
+    public CompletableFuture<String> geoGetAsync(String key, String member) {
+        log.info("GEO.GET ===> key: {}, member: {}", key, member);
+        return submitToShard(key, () -> getSegment(key).internalGeoGet(key, member));
+    }
+
+    public CompletableFuture<String> geoNbAsync(String key, String member) {
+        log.info("GEO.NB ===> key: {}, member: {}", key, member);
+        return submitToShard(key, () -> getSegment(key).internalGeoNb(key, member));
+    }
+
+    public CompletableFuture<String> geoSearchAsync(String key, Double centerLat, Double centerLon, Double radiusMeters, Integer limit) {
+        log.info("GEO.SEARCH ===> key: {}, lat: {}, lon: {}, radius: {}, limit: {}", key,
+                centerLat, centerLon, radiusMeters, limit);
+        return submitToShard(key, () -> getSegment(key).internalGeoSearch(key, centerLat, centerLon, radiusMeters, limit));
     }
 
     public CompletableFuture<String> geoDistAsync(String key, String member1, String member2) {
         log.info("GEO.DIST ===> key: {}, member1: {}, member2: {}", key, member1, member2);
         return submitToShard(key, () -> getSegment(key).internalGeoDist(key, member1, member2));
+    }
+
+    public CompletableFuture<Integer> geoExistsAsync(String key, String member) {
+        log.info("GEO.EXIST ===> key: {}, member: {}", key, member);
+        return submitToShard(key, () -> getSegment(key).internalGeoExists(key, member));
+    }
+
+    public CompletableFuture<String> geoEncodeAsync(String key, String member) {
+        log.info("GEO.ENCODE ===> key: {}, member: {}", key, member);
+        return submitToShard(key, () -> getSegment(key).internalGeoEncode(key, member));
     }
 
     public String put(String key, String value, Long ttl, Boolean notExists) {
@@ -338,6 +363,10 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
         return null;
     }
 
+    public String zTop(String key, Integer top) {
+        return null;
+    }
+
     public String zAdd(String key, Double score, String member, String value) {
         return null;
     }
@@ -350,7 +379,7 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
         return null;
     }
 
-    public String geoSearch(String key, Double centerLat, Double centerLon, Double radiusMeters) {
+    public String geoSearch(String key, Double centerLat, Double centerLon, Double radiusMeters, Integer limit) {
         return null;
     }
 
@@ -363,6 +392,22 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
     }
 
     public Integer geoRem(String key, String member) {
+        return null;
+    }
+
+    public String geoGet(String key, String member) {
+        return null;
+    }
+
+    public String geoNb(String key, String member) {
+        return null;
+    }
+
+    public Integer geoExists(String key, String member) {
+        return null;
+    }
+
+    public String geoEncode(String key, String member) {
         return null;
     }
 
@@ -762,6 +807,30 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
             return "OK";
         }
 
+        public String internalZTop(String key, Integer top) {
+            checkAndAgeLocal();
+            String internalKey = SKIP_LISTS_KEY_PREFIX + key;
+            var skipList = skipListsStorage.get(internalKey);
+
+            if (skipList == null) {
+                return null;
+            }
+
+            sketch.increment(internalKey);
+            var res = skipList.getRangeByPositions(0, top - 1);
+            boolean isFirst = true;
+            StringBuilder results = new StringBuilder("[");
+            for (String val : res) {
+                if (!isFirst) {
+                    results.append(",");
+                }
+                results.append(val);
+                isFirst = false;
+            }
+            results.append("]");
+            return results.toString();
+        }
+
         public Integer internalZRem(String key, String member) {
             checkAndAgeLocal();
             String internalKey = SKIP_LISTS_KEY_PREFIX + key;
@@ -796,6 +865,10 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
         }
 
         public String internalGeoAdd(String key, String member, Double lat, Double lon) {
+            if (lat < GeoHashUtil.MIN_LAT || lat > GeoHashUtil.MAX_LAT
+                    || lon < GeoHashUtil.MIN_LON || lon > GeoHashUtil.MAX_LON) {
+                return "FAIL";
+            }
             checkAndAgeLocal();
             String internalKey = GEO_KEY_PREFIX + key;
             GeoSkipList geoSkipList = geoHashStorage.computeIfAbsent(internalKey, k -> new GeoSkipList());
@@ -862,11 +935,33 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
             return 1;
         }
 
-        public String internalGeoSearch(String key, Double centerLat, Double centerLon, Double radiusMeters) {
+        public String internalGeoGet(String key, String member) {
             checkAndAgeLocal();
-            List<GeoSkipList.GeoResult> matchedResults = new ArrayList<>();
+            String internalKey = GEO_KEY_PREFIX + key;
+            GeoSkipList geoSkipList = geoHashStorage.get(internalKey);
 
-            if (key == null || radiusMeters == null || radiusMeters <= 0) {
+            if (geoSkipList == null) {
+                return null;
+            }
+
+            String globalMemberKey = internalKey + ":" + member;
+            Long geoHash = memberToGeoHashStorage.get(globalMemberKey);
+
+            if (geoHash == null) {
+                return null;
+            }
+
+            double[] coordinates = GeoHashUtil.decode(geoHash);
+            double lat = coordinates[0];
+            double lon = coordinates[1];
+
+            sketch.increment(internalKey);
+            return String.format(java.util.Locale.US, "[%.6f,%.6f]", lat, lon);
+        }
+
+        public String internalGeoSearch(String key, Double centerLat, Double centerLon, Double radiusMeters, Integer limit) {
+            checkAndAgeLocal();
+            if (key == null || radiusMeters == null || radiusMeters <= 0 || centerLat == null || centerLon == null) {
                 return "[]";
             }
 
@@ -877,15 +972,23 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
                 return "[]";
             }
 
+            // 1. Quy đổi bán kính (mét) sang delta Latitude/Longitude để tạo Bounding Box
+            // Giới hạn Latitude trong khoảng [-85.05112878, 85.05112878]
+            double clampedLat = Math.max(-85.05112878, Math.min(85.05112878, centerLat));
             double latDelta = radiusMeters / 111000.0;
-            double lonDelta = radiusMeters / (111000.0 * Math.cos(Math.toRadians(centerLat)));
+            double cosLat = Math.cos(Math.toRadians(clampedLat));
+            double lonDelta = (cosLat > 1e-6) ? radiusMeters / (111000.0 * cosLat) : latDelta;
 
-            double minLat = centerLat - latDelta;
-            double maxLat = centerLat + latDelta;
-            double minLon = centerLon - lonDelta;
-            double maxLon = centerLon + lonDelta;
+            double minLat = Math.max(clampedLat - latDelta, -85.05112878);
+            double maxLat = Math.min(clampedLat + latDelta, 85.05112878);
+            double minLon = Math.max(centerLon - lonDelta, -180.0);
+            double maxLon = Math.min(centerLon + lonDelta, 180.0);
 
+            // 2. Lấy các khoảng GeoHash (Ranges) phủ Bounding Box
             List<long[]> ranges = GeoHashUtil.calculateGeoHashRanges(minLat, maxLat, minLon, maxLon);
+            List<GeoSkipList.GeoResult> matchedResults = new ArrayList<>();
+
+            // 3. Quét range trong GeoSkipList của key hiện tại
             for (long[] range : ranges) {
                 List<GeoSkipList.GeoPoint> candidatePoints = geoSkipList.rangeScan(range[0], range[1]);
 
@@ -902,13 +1005,28 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
                 }
             }
 
-            matchedResults.sort(Comparator.comparingDouble(GeoSkipList.GeoResult::distanceMeters));
-            var matchedSet = matchedResults.stream().distinct().toList();
+            if (matchedResults.isEmpty()) {
+                return "[]";
+            }
+
+            // 4. Lọc trùng member (ưu tiên giữ lại điểm có khoảng cách nhỏ hơn) & Sắp xếp theo khoảng cách tăng dần
+            Map<String, GeoSkipList.GeoResult> uniqueMembersMap = new HashMap<>();
+            for (GeoSkipList.GeoResult res : matchedResults) {
+                uniqueMembersMap.merge(res.member(), res, (oldVal, newVal) ->
+                        newVal.distanceMeters() < oldVal.distanceMeters() ? newVal : oldVal
+                );
+            }
+
+            List<GeoSkipList.GeoResult> sortedResults = new ArrayList<>(uniqueMembersMap.values());
+            sortedResults.sort(Comparator.comparingDouble(GeoSkipList.GeoResult::distanceMeters));
+            if (limit != null && limit > 0) {
+                sortedResults = sortedResults.subList(0, limit);
+            }
             sketch.increment(internalKey);
 
             boolean isFirst = true;
             StringBuilder results = new StringBuilder("[");
-            for (var val : matchedSet) {
+            for (var val : sortedResults) {
                 if (!isFirst) {
                     results.append(",");
                 }
@@ -949,6 +1067,76 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
             GeoSkipList.GeoPoint p1 = new GeoSkipList.GeoPoint(member1, coord1[0], coord1[1], hash1);
             var res = p1.distanceToInMeters(coord2[0], coord2[1]);
             return String.valueOf(res);
+        }
+
+        public String internalGeoNb(String key, String member) {
+            checkAndAgeLocal();
+            String internalKey = GEO_KEY_PREFIX + key;
+            GeoSkipList geoSkipList = geoHashStorage.get(internalKey);
+            if (geoSkipList == null) {
+                return null;
+            }
+
+            String globalMemberKey = internalKey + ":" + member;
+            Long centerGeoHash = memberToGeoHashStorage.get(globalMemberKey);
+            if (centerGeoHash == null) {
+                return null;
+            }
+
+            // Lấy 8 ô lân cận
+            Map<String, Long> result = GeoHashUtil.getNeighbors(centerGeoHash);
+
+            // build response
+            StringBuilder res = new StringBuilder("{");
+            for (Map.Entry<String, Long> entry : result.entrySet()) {
+                double[] coords = GeoHashUtil.decode(entry.getValue());
+                double lat = coords[0];
+                double lon = coords[1];
+                String val = String.format(Locale.US, "[%.6f,%.6f]", lat, lon);
+                res.append("\"").append(entry.getKey()).append("\"").append(":").append(val).append(",");
+            }
+            res.append("\"CT\":");
+            double[] coords = GeoHashUtil.decode(centerGeoHash);
+            double lat = coords[0];
+            double lon = coords[1];
+            String valCt = String.format(Locale.US, "[%.6f,%.6f]", lat, lon);
+            res.append(valCt);
+            res.append("}");
+            return res.toString();
+        }
+
+        public Integer internalGeoExists(String key, String member) {
+            checkAndAgeLocal();
+            String internalKey = GEO_KEY_PREFIX + key;
+            GeoSkipList geoSkipList = geoHashStorage.get(internalKey);
+            if (geoSkipList == null) {
+                return 0;
+            }
+
+            String globalMemberKey = internalKey + ":" + member;
+            Long centerGeoHash = memberToGeoHashStorage.get(globalMemberKey);
+            if (centerGeoHash == null) {
+                return 0;
+            }
+
+            return 1;
+        }
+
+        public String internalGeoEncode(String key, String member) {
+            checkAndAgeLocal();
+            String internalKey = GEO_KEY_PREFIX + key;
+            GeoSkipList geoSkipList = geoHashStorage.get(internalKey);
+            if (geoSkipList == null) {
+                return null;
+            }
+
+            String globalMemberKey = internalKey + ":" + member;
+            Long centerGeoHash = memberToGeoHashStorage.get(globalMemberKey);
+            if (centerGeoHash == null) {
+                return null;
+            }
+
+            return String.valueOf(centerGeoHash);
         }
     }
 }

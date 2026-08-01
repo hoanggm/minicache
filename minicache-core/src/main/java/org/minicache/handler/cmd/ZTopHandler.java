@@ -8,18 +8,18 @@ import org.minicache.handler.ICacheHandler;
 
 import java.util.concurrent.CompletableFuture;
 
-public class GeoSearchHandler extends BaseHandler implements ICacheHandler<String> {
-    private static GeoSearchHandler handler;
+public class ZTopHandler extends BaseHandler implements ICacheHandler<String> {
+    private static ZTopHandler handler;
 
-    public static GeoSearchHandler getInstance(StorageEngine storageEngine) {
+    public static ZTopHandler getInstance(StorageEngine storageEngine) {
         if (handler == null) {
-            handler = new GeoSearchHandler(storageEngine);
+            handler = new ZTopHandler(storageEngine);
         }
 
         return handler;
     }
 
-    private GeoSearchHandler(StorageEngine storageEngine) {
+    private ZTopHandler(StorageEngine storageEngine) {
         super(storageEngine);
     }
 
@@ -28,19 +28,13 @@ public class GeoSearchHandler extends BaseHandler implements ICacheHandler<Strin
         if (message == null) {
             throw new RuntimeException();
         }
-        if (!Command.GEO_SEARCH.equals(message.getCommand())) {
+        if (!Command.Z_TOP.equals(message.getCommand())) {
             throw new RuntimeException();
         }
         if (message.getKey() == null || message.getKey().isBlank()) {
             throw new RuntimeException();
         }
-        if (message.getGeoRadius() == null) {
-            throw new RuntimeException();
-        }
-        if (message.getGeoLat() == null) {
-            throw new RuntimeException();
-        }
-        if (message.getGeoLon() == null) {
+        if (message.getZsStartIdx() == null) {
             throw new RuntimeException();
         }
     }
@@ -48,12 +42,12 @@ public class GeoSearchHandler extends BaseHandler implements ICacheHandler<Strin
     @Override
     public String handle(Message input) {
         validateInput(input);
-        return storageEngine.geoSearch(input.getKey(), input.getGeoLat(), input.getGeoLon(), input.getGeoRadius(), input.getLimit());
+        return storageEngine.zTop(input.getKey(), input.getZsStartIdx());
     }
 
     @Override
     public CompletableFuture<String> handleAsync(Message input) {
         validateInput(input);
-        return storageEngine.geoSearchAsync(input.getKey(), input.getGeoLat(), input.getGeoLon(), input.getGeoRadius(), input.getLimit());
+        return storageEngine.zTopAsync(input.getKey(), input.getZsStartIdx());
     }
 }

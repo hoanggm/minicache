@@ -48,15 +48,25 @@ public abstract class StorageEngine {
 
     public abstract String zRangeByScore(String key, Double minScore, Double maxScore);
 
+    public abstract String zTop(String key, Integer top);
+
     public abstract String geoAdd(String key, String member, Double lat, Double lon);
 
-    public abstract String geoSearch(String key, Double centerLat, Double centerLon, Double radiusMeters);
+    public abstract String geoSearch(String key, Double centerLat, Double centerLon, Double radiusMeters, Integer limit);
 
     public abstract String geoDist(String key, String member1, String member2);
 
     public abstract Integer geoDel(String key);
 
     public abstract Integer geoRem(String key, String member);
+
+    public abstract String geoGet(String key, String member);
+
+    public abstract String geoNb(String key, String member);
+
+    public abstract Integer geoExists(String key, String member);
+
+    public abstract String geoEncode(String key, String member);
 
     public CompletableFuture<String> putAsync(String key, String value, Long ttl, Boolean notExists) {
         return CompletableFuture.completedFuture(put(key, value, ttl, notExists));
@@ -122,6 +132,10 @@ public abstract class StorageEngine {
         return CompletableFuture.completedFuture(zAdd(key, score, member, value));
     }
 
+    public CompletableFuture<String> zTopAsync(String key, Integer top) {
+        return CompletableFuture.completedFuture(zTop(key, top));
+    }
+
     public CompletableFuture<Integer> zRemAsync(String key, String member) {
         return CompletableFuture.completedFuture(zRem(key, member));
     }
@@ -150,11 +164,27 @@ public abstract class StorageEngine {
         return CompletableFuture.completedFuture(geoRem(key, member));
     }
 
-    public CompletableFuture<String> geoSearchAsync(String key, Double centerLat, Double centerLon, Double radiusMeters) {
-        return CompletableFuture.completedFuture(geoSearch(key, centerLat, centerLon, radiusMeters));
+    public CompletableFuture<String> geoGetAsync(String key, String member) {
+        return CompletableFuture.completedFuture(geoGet(key, member));
+    }
+
+    public CompletableFuture<String> geoSearchAsync(String key, Double centerLat, Double centerLon, Double radiusMeters, Integer limit) {
+        return CompletableFuture.completedFuture(geoSearch(key, centerLat, centerLon, radiusMeters, limit));
     }
 
     public CompletableFuture<String> geoDistAsync(String key, String member1, String member2) {
         return CompletableFuture.completedFuture(geoDist(key, member1, member2));
+    }
+
+    public CompletableFuture<String> geoNbAsync(String key, String member) {
+        return CompletableFuture.completedFuture(geoNb(key, member));
+    }
+
+    public CompletableFuture<Integer> geoExistsAsync(String key, String member) {
+        return CompletableFuture.completedFuture(geoExists(key, member));
+    }
+
+    public CompletableFuture<String> geoEncodeAsync(String key, String member) {
+        return CompletableFuture.completedFuture(geoEncode(key, member));
     }
 }

@@ -8,18 +8,18 @@ import org.minicache.handler.ICacheHandler;
 
 import java.util.concurrent.CompletableFuture;
 
-public class GeoSearchHandler extends BaseHandler implements ICacheHandler<String> {
-    private static GeoSearchHandler handler;
+public class GeoEncodeHandler extends BaseHandler implements ICacheHandler<String> {
+    private static GeoEncodeHandler handler;
 
-    public static GeoSearchHandler getInstance(StorageEngine storageEngine) {
+    public static GeoEncodeHandler getInstance(StorageEngine storageEngine) {
         if (handler == null) {
-            handler = new GeoSearchHandler(storageEngine);
+            handler = new GeoEncodeHandler(storageEngine);
         }
 
         return handler;
     }
 
-    private GeoSearchHandler(StorageEngine storageEngine) {
+    private GeoEncodeHandler(StorageEngine storageEngine) {
         super(storageEngine);
     }
 
@@ -28,19 +28,13 @@ public class GeoSearchHandler extends BaseHandler implements ICacheHandler<Strin
         if (message == null) {
             throw new RuntimeException();
         }
-        if (!Command.GEO_SEARCH.equals(message.getCommand())) {
+        if (!Command.GEO_ENCODE.equals(message.getCommand())) {
             throw new RuntimeException();
         }
         if (message.getKey() == null || message.getKey().isBlank()) {
             throw new RuntimeException();
         }
-        if (message.getGeoRadius() == null) {
-            throw new RuntimeException();
-        }
-        if (message.getGeoLat() == null) {
-            throw new RuntimeException();
-        }
-        if (message.getGeoLon() == null) {
+        if (message.getGeoMem() == null || message.getGeoMem().isBlank()) {
             throw new RuntimeException();
         }
     }
@@ -48,12 +42,12 @@ public class GeoSearchHandler extends BaseHandler implements ICacheHandler<Strin
     @Override
     public String handle(Message input) {
         validateInput(input);
-        return storageEngine.geoSearch(input.getKey(), input.getGeoLat(), input.getGeoLon(), input.getGeoRadius(), input.getLimit());
+        return storageEngine.geoEncode(input.getKey(), input.getGeoMem());
     }
 
     @Override
     public CompletableFuture<String> handleAsync(Message input) {
         validateInput(input);
-        return storageEngine.geoSearchAsync(input.getKey(), input.getGeoLat(), input.getGeoLon(), input.getGeoRadius(), input.getLimit());
+        return storageEngine.geoEncodeAsync(input.getKey(), input.getGeoMem());
     }
 }

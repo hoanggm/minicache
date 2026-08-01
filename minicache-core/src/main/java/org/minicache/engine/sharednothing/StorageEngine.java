@@ -220,7 +220,7 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
         return submitToShard(key, () -> getSegment(key).internalZAdd(key, score, member, value));
     }
 
-    public CompletableFuture<String> zAddAsync(String key, Integer top) {
+    public CompletableFuture<String> zTopAsync(String key, Integer top) {
         log.info("Z.TOP ===> key: {}, top: {}", key, top);
         return submitToShard(key, () -> getSegment(key).internalZTop(key, top));
     }

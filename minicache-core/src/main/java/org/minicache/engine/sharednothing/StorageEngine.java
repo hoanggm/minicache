@@ -7,6 +7,7 @@ import org.minicache.common.Command;
 import org.minicache.common.Value;
 import org.minicache.struct.bloomfilter.BloomFilter;
 import org.minicache.struct.freqsketch.FrequencySketch;
+import org.minicache.struct.hash.CompactHash;
 import org.minicache.struct.skiplist.GeoSkipList;
 import org.minicache.struct.skiplist.VanillaSkipList;
 import org.minicache.util.GeoHashUtil;
@@ -144,6 +145,7 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
                 shardKeys.addAll(seg.bloomFiltersStorage.keySet());
                 shardKeys.addAll(seg.skipListsStorage.keySet());
                 shardKeys.addAll(seg.geoHashStorage.keySet());
+                shardKeys.addAll(seg.hashStorage.keySet());
                 future.complete(shardKeys);
             });
         }
@@ -291,6 +293,31 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
         return submitToShard(key, () -> getSegment(key).internalGeoEncode(key, member));
     }
 
+    public CompletableFuture<String> hSetAsync(String key, String field, String value) {
+        log.info("H.SET ===> key: {}, field: {}, value: {}", key, field, value);
+        return submitToShard(key, () -> getSegment(key).internalHSet(key, field, value));
+    }
+
+    public CompletableFuture<String> hGetAsync(String key, String field) {
+        log.info("H.GET ===> key: {}, field: {}", key, field);
+        return submitToShard(key, () -> getSegment(key).internalHGet(key, field));
+    }
+
+    public CompletableFuture<Integer> hRmAsync(String key, String field) {
+        log.info("H.RM ===> key: {}, field: {}", key, field);
+        return submitToShard(key, () -> getSegment(key).internalHRm(key, field));
+    }
+
+    public CompletableFuture<Integer> hDelAsync(String key) {
+        log.info("H.DEL ===> key: {}", key);
+        return submitToShard(key, () -> getSegment(key).internalHDel(key));
+    }
+
+    public CompletableFuture<String> hGetAllAsync(String key) {
+        log.info("H.ALL ===> key: {}", key);
+        return submitToShard(key, () -> getSegment(key).internalHGetAll(key));
+    }
+
     public String put(String key, String value, Long ttl, Boolean notExists) {
         return null;
     }
@@ -411,6 +438,26 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
         return null;
     }
 
+    public String hSet(String key, String field, String value) {
+        return null;
+    }
+
+    public String hGet(String key, String field) {
+        return null;
+    }
+
+    public Integer hRm(String key, String field) {
+        return null;
+    }
+
+    public Integer hDel(String key) {
+        return null;
+    }
+
+    public String hGetAll(String key) {
+        return null;
+    }
+
     private static class CacheSegment {
         private final long maxSegmentSize;
         private long currentSizeBytes = 0;
@@ -420,9 +467,11 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
         private final Map<String, Map<String, Double>> memberScoresStorage = new HashMap<>();
         private final Map<String, GeoSkipList> geoHashStorage = new HashMap<>();
         private final Map<String, Long> memberToGeoHashStorage = new HashMap<>();
+        private final Map<String, CompactHash> hashStorage = new HashMap<>();
         private final String BLOOM_FILTERS_KEY_PREFIX = "bf_";
         private final String SKIP_LISTS_KEY_PREFIX = "zs_";
         private final String GEO_KEY_PREFIX = "geo_";
+        private final String HASH_KEY_PREFIX = "hs_";
         private final FrequencySketch sketch;
         private final BlockingQueue<Runnable> taskQueue = new LinkedTransferQueue<>();
         private long localOperationCount = 0;
@@ -543,6 +592,7 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
             localOperationCount = 0;
             geoHashStorage.clear();
             memberToGeoHashStorage.clear();
+            hashStorage.clear();
         }
 
         private void evictUsingTinyLFU(String candidateKey) {
@@ -586,6 +636,8 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
             if (!pairsStorage.isEmpty()) stores.add(pairsStorage.keySet());
             if (!bloomFiltersStorage.isEmpty()) stores.add(bloomFiltersStorage.keySet());
             if (!skipListsStorage.isEmpty()) stores.add(skipListsStorage.keySet());
+            if (!geoHashStorage.isEmpty()) stores.add(geoHashStorage.keySet());
+            if (!hashStorage.isEmpty()) stores.add(hashStorage.keySet());
 
             if (stores.isEmpty()) return samples;
 
@@ -602,7 +654,8 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
                         samples.add(selectedKey);
                     }
                 }
-                long totalCurrentKeys = (long) pairsStorage.size() + bloomFiltersStorage.size() + skipListsStorage.size();
+                long totalCurrentKeys = (long) pairsStorage.size() + bloomFiltersStorage.size()
+                        + skipListsStorage.size() + geoHashStorage.size() + hashStorage.size();
                 if (samples.size() >= totalCurrentKeys) break;
             }
             return samples;
@@ -626,6 +679,20 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
             if (removedSkipList != null) {
                 long keySize = key.getBytes(StandardCharsets.UTF_8).length;
                 currentSizeBytes -= (keySize + (removedSkipList.size() * 180L));
+            }
+
+            GeoSkipList removedGeo = geoHashStorage.remove(key);
+            if (removedGeo != null) {
+                memberToGeoHashStorage.keySet().removeIf(k -> k.startsWith(key + ":"));
+                long keySize = key.getBytes(StandardCharsets.UTF_8).length;
+                currentSizeBytes -= keySize;
+            }
+
+            CompactHash removedHash = hashStorage.remove(key);
+            if (removedHash != null) {
+                long keyMetadataBytes = key.getBytes(StandardCharsets.UTF_8).length + 32;
+                long totalFreedBytes = keyMetadataBytes + removedHash.getEstimatedBytes();
+                currentSizeBytes -= totalFreedBytes;
             }
         }
 
@@ -1137,6 +1204,104 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
             }
 
             return String.valueOf(centerGeoHash);
+        }
+
+        public String internalHGet(String key, String field) {
+            checkAndAgeLocal();
+            String internalKey = HASH_KEY_PREFIX + key;
+            CompactHash hash = hashStorage.get(internalKey);
+            if (hash == null) {
+                return null;
+            }
+
+            sketch.increment(internalKey);
+            return hash.get(field);
+        }
+
+        public String internalHSet(String key, String field, String value) {
+            checkAndAgeLocal();
+            String internalKey = HASH_KEY_PREFIX + key;
+            boolean isNewHashKey = !hashStorage.containsKey(internalKey);
+
+            CompactHash hash = hashStorage.computeIfAbsent(internalKey, k -> new CompactHash());
+            CompactHash.PutResult putResult = hash.put(field, value);
+            long keyMetadataBytes = isNewHashKey
+                    ? internalKey.getBytes(StandardCharsets.UTF_8).length + 32
+                    : 0;
+
+            long totalDeltaBytes = keyMetadataBytes + putResult.memoryDelta();
+
+            currentSizeBytes += totalDeltaBytes;
+            sketch.increment(internalKey);
+
+            if (currentSizeBytes > maxSegmentSize) {
+                evictUsingTinyLFU(internalKey);
+            }
+
+            return "OK";
+        }
+
+        public Integer internalHRm(String key, String field) {
+            checkAndAgeLocal();
+            String internalKey = HASH_KEY_PREFIX + key;
+            CompactHash hash = hashStorage.get(internalKey);
+            if (hash == null) return 0;
+
+            CompactHash.RemoveResult removeResult = hash.remove(field);
+
+            if (removeResult.oldValue() != null) {
+                currentSizeBytes -= removeResult.freedBytes();
+
+                if (hash.isEmpty()) {
+                    hashStorage.remove(internalKey);
+                    long freedKeyMetadata = internalKey.getBytes(StandardCharsets.UTF_8).length + 32 + hash.getEstimatedBytes();
+                    currentSizeBytes -= freedKeyMetadata;
+                }
+
+                sketch.increment(internalKey);
+                return 1;
+            }
+            return 0;
+        }
+
+        public String internalHGetAll(String key) {
+            checkAndAgeLocal();
+            String internalKey = HASH_KEY_PREFIX + key;
+            CompactHash hash = hashStorage.get(internalKey);
+            if (hash == null || hash.isEmpty()) return "{}";
+
+            sketch.increment(internalKey);
+
+            StringBuilder json = new StringBuilder("{");
+            boolean[] isFirst = {true};
+
+            hash.forEach((k, v) -> {
+                if (!isFirst[0]) {
+                    json.append(",");
+                }
+                json.append("\"").append(k).append("\":\"").append(v).append("\"");
+                isFirst[0] = false;
+            });
+
+            json.append("}");
+            return json.toString();
+        }
+
+        public Integer internalHDel(String key) {
+            checkAndAgeLocal();
+            String internalKey = HASH_KEY_PREFIX + key;
+            CompactHash removedHash = hashStorage.remove(internalKey);
+
+            if (removedHash != null) {
+                long keyMetadataBytes = internalKey.getBytes(StandardCharsets.UTF_8).length + 32;
+                long totalFreedBytes = keyMetadataBytes + removedHash.getEstimatedBytes();
+
+                currentSizeBytes -= totalFreedBytes;
+                sketch.increment(internalKey);
+                return 1;
+            }
+
+            return 0;
         }
     }
 }

@@ -68,6 +68,16 @@ public abstract class StorageEngine {
 
     public abstract String geoEncode(String key, String member);
 
+    public abstract String hSet(String key, String field, String value);
+
+    public abstract String hGet(String key, String field);
+
+    public abstract Integer hRm(String key, String field);
+
+    public abstract Integer hDel(String key);
+
+    public abstract String hGetAll(String key);
+
     public CompletableFuture<String> putAsync(String key, String value, Long ttl, Boolean notExists) {
         return CompletableFuture.completedFuture(put(key, value, ttl, notExists));
     }
@@ -186,5 +196,25 @@ public abstract class StorageEngine {
 
     public CompletableFuture<String> geoEncodeAsync(String key, String member) {
         return CompletableFuture.completedFuture(geoEncode(key, member));
+    }
+
+    public CompletableFuture<String> hSetAsync(String key, String field, String value) {
+        return CompletableFuture.completedFuture(hSet(key, field, value));
+    }
+
+    public CompletableFuture<String> hGetAsync(String key, String field) {
+        return CompletableFuture.completedFuture(hGet(key, field));
+    }
+
+    public CompletableFuture<Integer> hRmAsync(String key, String field) {
+        return CompletableFuture.completedFuture(hRm(key, field));
+    }
+
+    public CompletableFuture<Integer> hDelAsync(String key) {
+        return CompletableFuture.completedFuture(hDel(key));
+    }
+
+    public CompletableFuture<String> hGetAllAsync(String key) {
+        return CompletableFuture.completedFuture(hGetAll(key));
     }
 }

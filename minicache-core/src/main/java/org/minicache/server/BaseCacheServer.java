@@ -69,6 +69,11 @@ public abstract class BaseCacheServer {
         commandCacheHandler.put(Command.GEO_NB, () -> GeoNbHandler.getInstance(engine));
         commandCacheHandler.put(Command.GEO_EXISTS, () -> GeoExistsHandler.getInstance(engine));
         commandCacheHandler.put(Command.GEO_ENCODE, () -> GeoEncodeHandler.getInstance(engine));
+        commandCacheHandler.put(Command.H_SET, () -> HSetHandler.getInstance(engine));
+        commandCacheHandler.put(Command.H_GET, () -> HGetHandler.getInstance(engine));
+        commandCacheHandler.put(Command.H_RM, () -> HRmHandler.getInstance(engine));
+        commandCacheHandler.put(Command.H_DEL, () -> HDelHandler.getInstance(engine));
+        commandCacheHandler.put(Command.H_ALL, () -> HGetAllHandler.getInstance(engine));
 
         readCommands = Arrays.asList(
                 Command.GET,
@@ -86,7 +91,9 @@ public abstract class BaseCacheServer {
                 Command.GEO_GET,
                 Command.GEO_NB,
                 Command.GEO_EXISTS,
-                Command.GEO_ENCODE
+                Command.GEO_ENCODE,
+                Command.H_GET,
+                Command.H_ALL
         );
 
         writeCommands = Arrays.asList(
@@ -103,7 +110,10 @@ public abstract class BaseCacheServer {
                 Command.Z_ADD,
                 Command.GEO_ADD,
                 Command.GEO_DEL,
-                Command.GEO_RM
+                Command.GEO_RM,
+                Command.H_RM,
+                Command.H_DEL,
+                Command.H_SET
         );
     }
 

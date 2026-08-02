@@ -21,6 +21,7 @@ public class Message {
     private String geoMem;
     private String geoMem2;
     private Double geoRadius;
+    private String hsField;
 
     public Command getCommand() {
         return command;
@@ -180,5 +181,13 @@ public class Message {
 
     public void setLimit(Integer limit) {
         this.limit = limit;
+    }
+
+    public String getHsField() {
+        return hsField;
+    }
+
+    public void setHsField(String hsField) {
+        this.hsField = hsField;
     }
 }

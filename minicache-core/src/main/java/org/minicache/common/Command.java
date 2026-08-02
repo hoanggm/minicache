@@ -30,5 +30,10 @@ public enum Command {
     GEO_GET,
     GEO_NB,
     GEO_EXISTS,
-    GEO_ENCODE
+    GEO_ENCODE,
+    H_GET,
+    H_RM,
+    H_DEL,
+    H_ALL,
+    H_SET
 }

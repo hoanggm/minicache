@@ -92,13 +92,13 @@ public class CacheServer extends BaseCacheServer {
         if (result == null) return "N|";
 
         return switch (cmd) {
-            case PUT, BF_ADD, BF_INIT, Z_POS, Z_ADD, Z_SCR, GEO_ADD, GEO_ENCODE -> "S|" + result;
-            case GET, LST_KEY, Z_RANGE, Z_TOP, Z_RSCR, GEO_SEARCH, GEO_DIST, GEO_GET, GEO_NB -> {
+            case PUT, BF_ADD, BF_INIT, Z_POS, Z_ADD, Z_SCR, GEO_ADD, GEO_ENCODE, H_GET, H_SET -> "S|" + result;
+            case GET, LST_KEY, Z_RANGE, Z_TOP, Z_RSCR, GEO_SEARCH, GEO_DIST, GEO_GET, GEO_NB, H_ALL -> {
                 String value = (String) result;
                 yield "D|" + value.length() + "|" + value;
             }
-            case DELETE, EXISTS, CLEAR, BF_EXISTS, BF_RM, BF_RS, Z_INCR, Z_RANK, Z_DEL, Z_RM, GEO_DEL, GEO_RM, GEO_EXISTS ->
-                    "I|" + result;
+            case DELETE, EXISTS, CLEAR, BF_EXISTS, BF_RM, BF_RS, Z_INCR, Z_RANK, Z_DEL, Z_RM, GEO_DEL,
+                    GEO_RM, GEO_EXISTS, H_RM, H_DEL -> "I|" + result;
         };
     }
 
@@ -356,6 +356,40 @@ public class CacheServer extends BaseCacheServer {
                     msg.setCommand(Command.GEO_ENCODE);
                     msg.setKey(tokens.get(1));
                     msg.setGeoMem(tokens.get(2));
+                }
+                break;
+            case "H.SET":
+                if (tokens.size() == 4) {
+                    msg.setCommand(Command.H_SET);
+                    msg.setKey(tokens.get(1));
+                    msg.setHsField(tokens.get(2));
+                    msg.setValue(tokens.get(3));
+                }
+                break;
+            case "H.GET":
+                if (tokens.size() == 3) {
+                    msg.setCommand(Command.H_GET);
+                    msg.setKey(tokens.get(1));
+                    msg.setHsField(tokens.get(2));
+                }
+                break;
+            case "H.RM":
+                if (tokens.size() == 3) {
+                    msg.setCommand(Command.H_RM);
+                    msg.setKey(tokens.get(1));
+                    msg.setHsField(tokens.get(2));
+                }
+                break;
+            case "H.DEL":
+                if (tokens.size() == 2) {
+                    msg.setCommand(Command.H_DEL);
+                    msg.setKey(tokens.get(1));
+                }
+                break;
+            case "H.ALL":
+                if (tokens.size() == 2) {
+                    msg.setCommand(Command.H_ALL);
+                    msg.setKey(tokens.get(1));
                 }
                 break;
         }

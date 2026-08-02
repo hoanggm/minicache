@@ -66,6 +66,7 @@ public class CacheServer extends BaseCacheServer {
                     msg.setGeoMem(tokens[9]);
                     msg.setGeoLat(Double.valueOf(tokens[10]));
                     msg.setGeoLon(Double.valueOf(tokens[11]));
+                    msg.setHsField(tokens[12]);
 
                     if (asyncResponse) {
                         commandCacheHandler.get(msg.getCommand())
@@ -176,6 +177,7 @@ public class CacheServer extends BaseCacheServer {
                                     double geoRadius = in.readDouble();
 
                                     int limit = in.readInt();
+                                    String hsField = in.readUTF();
 
                                     if (opcode == 0x01) {
                                         if (raftNode.getLeader().equals(raftNode.getNodeId())) {
@@ -221,6 +223,11 @@ public class CacheServer extends BaseCacheServer {
                                         case 0x28 -> cmd = Command.GEO_NB;
                                         case 0x30 -> cmd = Command.GEO_EXISTS;
                                         case 0x31 -> cmd = Command.GEO_ENCODE;
+                                        case 0x32 -> cmd = Command.H_SET;
+                                        case 0x33 -> cmd = Command.H_GET;
+                                        case 0x34 -> cmd = Command.H_ALL;
+                                        case 0x35 -> cmd = Command.H_RM;
+                                        case 0x36 -> cmd = Command.H_DEL;
                                     }
 
                                     if (cmd == null || !commandCacheHandler.containsKey(cmd)) {
@@ -248,6 +255,7 @@ public class CacheServer extends BaseCacheServer {
                                         msg.setGeoMem2(geoMem2);
                                         msg.setGeoRadius(geoRadius);
                                         msg.setLimit(limit);
+                                        msg.setHsField(hsField);
 
                                         if (asyncResponse) {
                                             Command finalCmd = cmd;
@@ -319,6 +327,7 @@ public class CacheServer extends BaseCacheServer {
                                         msg.setGeoLon(geoLon);
                                         msg.setGeoMem2(geoMem2);
                                         msg.setGeoRadius(geoRadius);
+                                        msg.setHsField(hsField);
 
                                         if (asyncResponse) {
                                             Command finalCmd = cmd;
@@ -344,11 +353,12 @@ public class CacheServer extends BaseCacheServer {
                                                         log.info("WRITE DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
 
                                                         // Định dạng dữ liệu thành chuỗi đặc tả Log duy nhất chuyển sang cho tầng mạng Raft
-                                                        String raftCommandStr = String.format("%s|%s|%s|%d|%b|%d|%f|%f|%s|%s|%f|%f",
+                                                        String raftCommandStr = String.format("%s|%s|%s|%d|%b|%d|%f|%f|%s|%s|%f|%f|%s",
                                                                 finalCmd.name(), key, value,
                                                                 (long) timeToLive, notExists == 1,
                                                                 bloomExpectedKeys, bloomFalsePositiveRate,
-                                                                zsScore, zsMember, geoMem, geoLat, geoLon);
+                                                                zsScore, zsMember, geoMem, geoLat, geoLon,
+                                                                hsField);
 
                                                         // Đồng bộ sang các node khác
                                                         raftNode.propose(raftCommandStr);
@@ -375,11 +385,12 @@ public class CacheServer extends BaseCacheServer {
                                             log.info("WRITE DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
 
                                             // Định dạng dữ liệu thành chuỗi đặc tả Log duy nhất chuyển sang cho tầng mạng Raft
-                                            String raftCommandStr = String.format("%s|%s|%s|%d|%b|%d|%f|%f|%s|%s|%f|%f",
+                                            String raftCommandStr = String.format("%s|%s|%s|%d|%b|%d|%f|%f|%s|%s|%f|%f|%s",
                                                     cmd.name(), key, value,
                                                     (long) timeToLive, notExists == 1,
                                                     bloomExpectedKeys, bloomFalsePositiveRate,
-                                                    zsScore, zsMember, geoMem, geoLat, geoLon);
+                                                    zsScore, zsMember, geoMem, geoLat, geoLon,
+                                                    hsField);
 
                                             // Đồng bộ sang các node khác
                                             raftNode.propose(raftCommandStr);

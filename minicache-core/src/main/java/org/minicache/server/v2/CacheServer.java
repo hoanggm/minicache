@@ -74,6 +74,7 @@ public class CacheServer extends BaseCacheServer {
                                     double geoRadius = in.readDouble();
 
                                     int limit = in.readInt();
+                                    String hsField = in.readUTF();
 
                                     var startTime = System.nanoTime();
                                     if (opcode == 0x01) {
@@ -117,6 +118,11 @@ public class CacheServer extends BaseCacheServer {
                                         case 0x28 -> cmd = Command.GEO_NB;
                                         case 0x30 -> cmd = Command.GEO_EXISTS;
                                         case 0x31 -> cmd = Command.GEO_ENCODE;
+                                        case 0x32 -> cmd = Command.H_SET;
+                                        case 0x33 -> cmd = Command.H_GET;
+                                        case 0x34 -> cmd = Command.H_ALL;
+                                        case 0x35 -> cmd = Command.H_RM;
+                                        case 0x36 -> cmd = Command.H_DEL;
                                     }
 
                                     if (cmd == null || !commandCacheHandler.containsKey(cmd)) {
@@ -145,6 +151,7 @@ public class CacheServer extends BaseCacheServer {
                                     msg.setGeoMem2(geoMem2);
                                     msg.setGeoRadius(geoRadius);
                                     msg.setLimit(limit);
+                                    msg.setHsField(hsField);
 
                                     if (asyncResponse) {
                                         Command finalCmd = cmd;

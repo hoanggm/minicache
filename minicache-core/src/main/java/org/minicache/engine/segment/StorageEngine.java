@@ -1328,7 +1328,7 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
         }
 
         public Integer geoRem(String key, String member) {
-            rwLock.readLock().lock();
+            rwLock.writeLock().lock();
             try {
                 String internalKey = GEO_KEY_PREFIX + key;
                 GeoSkipList geoSkipList = geoHashStorage.get(internalKey);
@@ -1358,7 +1358,7 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
 
                 return 1;
             } finally {
-                rwLock.readLock().unlock();
+                rwLock.writeLock().unlock();
             }
         }
 

@@ -1,11 +1,11 @@
-package org.minicache.util;
+package org.minicache.struct.geohash;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 
-public class GeoHashUtil {
+public class GeoHashHelper {
     public static final double MIN_LAT = -85.05112878;
     public static final double MAX_LAT = 85.05112878;
     public static final double MIN_LON = -180.0;
@@ -14,8 +14,27 @@ public class GeoHashUtil {
     private static final int BITS_PER_DIMENSION = 26;
     private static final long MAX_INDEX = (1L << BITS_PER_DIMENSION) - 1;
     private static final double EARTH_RADIUS_METERS = 6371000.0;
+    private static final char[] BASE32_CHARS = {
+            '0', '1', '2', '3', '4', '5', '6', '7',
+            '8', '9', 'b', 'c', 'd', 'e', 'f', 'g',
+            'h', 'j', 'k', 'm', 'n', 'p', 'q', 'r',
+            's', 't', 'u', 'v', 'w', 'x', 'y', 'z'
+    };
 
-    private GeoHashUtil() {
+    private GeoHashHelper() {
+    }
+
+    public static String toBase32(long geohash) {
+        int numChars = 11;
+        char[] buf = new char[numChars];
+
+        for (int i = 0; i < numChars; i++) {
+            int shift = (numChars - 1 - i) * 5;
+            int charIndex = (int) ((geohash >> shift) & 0x1F);
+            buf[i] = BASE32_CHARS[charIndex];
+        }
+
+        return new String(buf);
     }
 
     /**
@@ -95,8 +114,8 @@ public class GeoHashUtil {
                 double cMinLon = minLon + j * lonStep;
                 double cMaxLon = minLon + (j + 1) * lonStep;
 
-                long h1 = GeoHashUtil.encode(cMinLat, cMinLon);
-                long h2 = GeoHashUtil.encode(cMaxLat, cMaxLon);
+                long h1 = GeoHashHelper.encode(cMinLat, cMinLon);
+                long h2 = GeoHashHelper.encode(cMaxLat, cMaxLon);
 
                 ranges.add(new long[]{Math.min(h1, h2), Math.max(h1, h2)});
             }

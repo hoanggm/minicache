@@ -1,4 +1,4 @@
-package org.minicache.struct.skiplist;
+package org.minicache.struct.geohash;
 
 import java.util.ArrayList;
 import java.util.List;

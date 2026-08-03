@@ -8,9 +8,9 @@ import org.minicache.common.Value;
 import org.minicache.struct.bloomfilter.BloomFilter;
 import org.minicache.struct.freqsketch.FrequencySketch;
 import org.minicache.struct.hash.CompactHash;
-import org.minicache.struct.skiplist.GeoSkipList;
+import org.minicache.struct.geohash.GeoSkipList;
 import org.minicache.struct.skiplist.VanillaSkipList;
-import org.minicache.util.GeoHashUtil;
+import org.minicache.struct.geohash.GeoHashHelper;
 
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -932,15 +932,15 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
         }
 
         public String internalGeoAdd(String key, String member, Double lat, Double lon) {
-            if (lat < GeoHashUtil.MIN_LAT || lat > GeoHashUtil.MAX_LAT
-                    || lon < GeoHashUtil.MIN_LON || lon > GeoHashUtil.MAX_LON) {
+            if (lat < GeoHashHelper.MIN_LAT || lat > GeoHashHelper.MAX_LAT
+                    || lon < GeoHashHelper.MIN_LON || lon > GeoHashHelper.MAX_LON) {
                 return "FAIL";
             }
             checkAndAgeLocal();
             String internalKey = GEO_KEY_PREFIX + key;
             GeoSkipList geoSkipList = geoHashStorage.computeIfAbsent(internalKey, k -> new GeoSkipList());
 
-            long newGeoHash = GeoHashUtil.encode(lat, lon);
+            long newGeoHash = GeoHashHelper.encode(lat, lon);
             GeoSkipList.GeoPoint newPoint = new GeoSkipList.GeoPoint(member, lat, lon, newGeoHash);
             String globalMemberKey = internalKey + ":" + member;
             Long oldGeoHash = memberToGeoHashStorage.put(globalMemberKey, newGeoHash);
@@ -1018,7 +1018,7 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
                 return null;
             }
 
-            double[] coordinates = GeoHashUtil.decode(geoHash);
+            double[] coordinates = GeoHashHelper.decode(geoHash);
             double lat = coordinates[0];
             double lon = coordinates[1];
 
@@ -1052,7 +1052,7 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
             double maxLon = Math.min(centerLon + lonDelta, 180.0);
 
             // 2. Lấy các khoảng GeoHash (Ranges) phủ Bounding Box
-            List<long[]> ranges = GeoHashUtil.calculateGeoHashRanges(minLat, maxLat, minLon, maxLon);
+            List<long[]> ranges = GeoHashHelper.calculateGeoHashRanges(minLat, maxLat, minLon, maxLon);
             List<GeoSkipList.GeoResult> matchedResults = new ArrayList<>();
 
             // 3. Quét range trong GeoSkipList của key hiện tại
@@ -1128,8 +1128,8 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
             }
 
             // Giải mã tọa độ và tính khoảng cách
-            double[] coord1 = GeoHashUtil.decode(hash1);
-            double[] coord2 = GeoHashUtil.decode(hash2);
+            double[] coord1 = GeoHashHelper.decode(hash1);
+            double[] coord2 = GeoHashHelper.decode(hash2);
 
             GeoSkipList.GeoPoint p1 = new GeoSkipList.GeoPoint(member1, coord1[0], coord1[1], hash1);
             var res = p1.distanceToInMeters(coord2[0], coord2[1]);
@@ -1151,19 +1151,19 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
             }
 
             // Lấy 8 ô lân cận
-            Map<String, Long> result = GeoHashUtil.getNeighbors(centerGeoHash);
+            Map<String, Long> result = GeoHashHelper.getNeighbors(centerGeoHash);
 
             // build response
             StringBuilder res = new StringBuilder("{");
             for (Map.Entry<String, Long> entry : result.entrySet()) {
-                double[] coords = GeoHashUtil.decode(entry.getValue());
+                double[] coords = GeoHashHelper.decode(entry.getValue());
                 double lat = coords[0];
                 double lon = coords[1];
                 String val = String.format(Locale.US, "[%.6f,%.6f]", lat, lon);
                 res.append("\"").append(entry.getKey()).append("\"").append(":").append(val).append(",");
             }
             res.append("\"CT\":");
-            double[] coords = GeoHashUtil.decode(centerGeoHash);
+            double[] coords = GeoHashHelper.decode(centerGeoHash);
             double lat = coords[0];
             double lon = coords[1];
             String valCt = String.format(Locale.US, "[%.6f,%.6f]", lat, lon);
@@ -1203,7 +1203,7 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
                 return null;
             }
 
-            return String.valueOf(centerGeoHash);
+            return GeoHashHelper.toBase32(centerGeoHash);
         }
 
         public String internalHGet(String key, String field) {

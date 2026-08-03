@@ -1,5 +1,6 @@
 package org.minicache.struct.geohash;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -142,6 +143,32 @@ public class GeoSkipList {
             }
             this.head.points.clear();
             this.level = 1;
+        } finally {
+            writeLock.unlock();
+        }
+    }
+
+    public long clearAndCountFreedBytes() {
+        writeLock.lock();
+        try {
+            long totalBytes = 0;
+            Node current = head.forward[0];
+
+            while (current != null) {
+                for (GeoPoint p : current.points) {
+                    long memberBytes = p.member().getBytes(StandardCharsets.UTF_8).length;
+                    totalBytes += (48 + memberBytes + 16 + (16 * 8));
+                }
+                current = current.forward[0];
+            }
+
+            for (int i = 0; i < MAX_LEVEL; i++) {
+                this.head.forward[i] = null;
+            }
+            this.head.points.clear();
+            this.level = 1;
+
+            return totalBytes;
         } finally {
             writeLock.unlock();
         }

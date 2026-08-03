@@ -24,16 +24,19 @@ public class GeoHashHelper {
     private GeoHashHelper() {
     }
 
+    /**
+     * @return Lấy chuỗi geohash dưới dạng Base32
+     */
     public static String toBase32(long geohash) {
-        int numChars = 11;
-        char[] buf = new char[numChars];
+        char[] buf = new char[11];
+        // Căn lề trái 52 bits sang 55 bits (11 * 5 bits)
+        long alignedHash = geohash << 3;
 
-        for (int i = 0; i < numChars; i++) {
-            int shift = (numChars - 1 - i) * 5;
-            int charIndex = (int) ((geohash >> shift) & 0x1F);
+        for (int i = 0; i < 11; i++) {
+            int shift = 50 - (i * 5);
+            int charIndex = (int) ((alignedHash >> shift) & 0x1F);
             buf[i] = BASE32_CHARS[charIndex];
         }
-
         return new String(buf);
     }
 
@@ -95,9 +98,12 @@ public class GeoHashHelper {
 
     private static long interleave(long latBits, long lonBits) {
         long result = 0;
-        for (int i = 0; i < 26; i++) {
-            result |= ((lonBits >> i) & 1L) << (2 * i);
-            result |= ((latBits >> i) & 1L) << (2 * i + 1);
+        for (int i = 25; i >= 0; i--) {
+            long lonBit = (lonBits >> i) & 1L;
+            long latBit = (latBits >> i) & 1L;
+
+            result = (result << 1) | lonBit;
+            result = (result << 1) | latBit;
         }
         return result;
     }
@@ -125,23 +131,29 @@ public class GeoHashHelper {
 
     public static double[] decode(long geohash) {
         long[] deinterleaved = deinterleave(geohash);
-        double lat = bitsToScale(deinterleaved[0], MIN_LAT, MAX_LAT, 26);
-        double lon = bitsToScale(deinterleaved[1], MIN_LON, MAX_LON, 26);
+        double lon = scaleFromBits(deinterleaved[0], MIN_LON, MAX_LON, 26);
+        double lat = scaleFromBits(deinterleaved[1], MIN_LAT, MAX_LAT, 26);
         return new double[]{lat, lon};
+
     }
 
     private static long[] deinterleave(long geohash) {
-        long lonBits = 0, latBits = 0;
+        long lonBits = 0;
+        long latBits = 0;
+
         for (int i = 0; i < 26; i++) {
-            lonBits |= ((geohash >> (2 * i)) & 1L) << i;
-            latBits |= ((geohash >> (2 * i + 1)) & 1L) << i;
+            long latBit = (geohash >> (2 * i)) & 1L;
+            long lonBit = (geohash >> (2 * i + 1)) & 1L;
+
+            latBits |= (latBit << i);
+            lonBits |= (lonBit << i);
         }
-        return new long[]{latBits, lonBits};
+        return new long[]{lonBits, latBits};
     }
 
-    private static double bitsToScale(long bits, double min, double max, int numBits) {
-        double norm = (double) bits / ((1L << numBits) - 1);
-        return min + norm * (max - min);
+    private static double scaleFromBits(long hash, double min, double max, int bits) {
+        double maxVal = (1L << bits) - 1;
+        return min + ((double) hash / maxVal) * (max - min);
     }
 
     /**

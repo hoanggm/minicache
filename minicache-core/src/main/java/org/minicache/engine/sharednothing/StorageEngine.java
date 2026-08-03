@@ -1039,25 +1039,13 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
                 return "[]";
             }
 
-            // 1. Quy đổi bán kính (mét) sang delta Latitude/Longitude để tạo Bounding Box
-            // Giới hạn Latitude trong khoảng [-85.05112878, 85.05112878]
-            double clampedLat = Math.max(-85.05112878, Math.min(85.05112878, centerLat));
-            double latDelta = radiusMeters / 111000.0;
-            double cosLat = Math.cos(Math.toRadians(clampedLat));
-            double lonDelta = (cosLat > 1e-6) ? radiusMeters / (111000.0 * cosLat) : latDelta;
-
-            double minLat = Math.max(clampedLat - latDelta, -85.05112878);
-            double maxLat = Math.min(clampedLat + latDelta, 85.05112878);
-            double minLon = Math.max(centerLon - lonDelta, -180.0);
-            double maxLon = Math.min(centerLon + lonDelta, 180.0);
-
-            // 2. Lấy các khoảng GeoHash (Ranges) phủ Bounding Box
-            List<long[]> ranges = GeoHashHelper.calculateGeoHashRanges(minLat, maxLat, minLon, maxLon);
+            // 1. Tính toán tập hợp các dải GeoHash bao phủ bán kính xung quanh điểm center
+            List<GeoHashHelper.GeoHashRange> ranges = GeoHashHelper.coverRadius(centerLat, centerLon, radiusMeters);
             List<GeoSkipList.GeoResult> matchedResults = new ArrayList<>();
 
-            // 3. Quét range trong GeoSkipList của key hiện tại
-            for (long[] range : ranges) {
-                List<GeoSkipList.GeoPoint> candidatePoints = geoSkipList.rangeScan(range[0], range[1]);
+            // 2. Quét các range chính xác trong GeoSkipList
+            for (GeoHashHelper.GeoHashRange range : ranges) {
+                List<GeoSkipList.GeoPoint> candidatePoints = geoSkipList.rangeScan(range.minHash(), range.maxHash());
 
                 for (GeoSkipList.GeoPoint point : candidatePoints) {
                     double distance = point.distanceToInMeters(centerLat, centerLon);
@@ -1076,7 +1064,7 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
                 return "[]";
             }
 
-            // 4. Lọc trùng member (ưu tiên giữ lại điểm có khoảng cách nhỏ hơn) & Sắp xếp theo khoảng cách tăng dần
+            // 3. Lọc trùng member (giữ lại điểm gần nhất) & Sắp xếp theo khoảng cách tăng dần
             Map<String, GeoSkipList.GeoResult> uniqueMembersMap = new HashMap<>();
             for (GeoSkipList.GeoResult res : matchedResults) {
                 uniqueMembersMap.merge(res.member(), res, (oldVal, newVal) ->
@@ -1086,7 +1074,7 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
 
             List<GeoSkipList.GeoResult> sortedResults = new ArrayList<>(uniqueMembersMap.values());
             sortedResults.sort(Comparator.comparingDouble(GeoSkipList.GeoResult::distanceMeters));
-            if (limit != null && limit > 0) {
+            if (limit != null && limit > 0 && limit < sortedResults.size()) {
                 sortedResults = sortedResults.subList(0, limit);
             }
             sketch.increment(internalKey);

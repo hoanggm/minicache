@@ -1,8 +1,5 @@
 package org.minicache.util;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.Temporal;
 

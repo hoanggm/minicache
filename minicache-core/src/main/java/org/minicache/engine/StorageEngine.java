@@ -8,6 +8,8 @@ import java.util.concurrent.CompletableFuture;
 public abstract class StorageEngine {
     public abstract Map<String, String> getInitCfg();
 
+    public abstract void shutdown();
+
     public abstract String put(String key, String value, Long ttl, Boolean notExists);
 
     public abstract String get(String key);

@@ -125,6 +125,7 @@ public abstract class BaseCacheServer {
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             log.info("Initiating graceful shutdown...");
+            engine.shutdown();
             isRunning.set(false);
             if (socketServer != null && !socketServer.isClosed()) {
                 try {

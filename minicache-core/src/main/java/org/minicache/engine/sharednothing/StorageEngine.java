@@ -4,19 +4,18 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.minicache.common.AsyncMDC;
 import org.minicache.common.Command;
+import org.minicache.common.TTLEntry;
 import org.minicache.common.Value;
 import org.minicache.struct.bloomfilter.BloomFilter;
 import org.minicache.struct.freqsketch.FrequencySketch;
-import org.minicache.struct.hash.CompactHash;
-import org.minicache.struct.geohash.GeoSkipList;
-import org.minicache.struct.skiplist.VanillaSkipList;
 import org.minicache.struct.geohash.GeoHashHelper;
+import org.minicache.struct.geohash.GeoSkipList;
+import org.minicache.struct.hash.CompactHash;
+import org.minicache.struct.skiplist.VanillaSkipList;
 
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.LinkedTransferQueue;
+import java.util.concurrent.*;
 import java.util.function.Supplier;
 
 public class StorageEngine extends org.minicache.engine.StorageEngine {
@@ -24,6 +23,8 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
     private final int segmentMask;
     private final CacheSegment[] segments;
     private final Map<String, String> initCfg;
+    private final ScheduledExecutorService ttlCleanerScheduler;
+    private static final long CLEANUP_INTERVAL_MS = 1000 * 60 * 60;
 
     public StorageEngine(long maxSize) {
         var segmentCount = getOptimalSegmentCount();
@@ -50,6 +51,39 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
                 "maxSizePerSegment", String.valueOf(maxSegmentSize),
                 "segmentExpectedKeys", String.valueOf(segmentExpectedKeys)
         );
+
+        // Auto clean up expired key-value entry
+        this.ttlCleanerScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "minicache-sharednothing-ttl-cleaner");
+            t.setDaemon(true);
+            return t;
+        });
+
+        this.ttlCleanerScheduler.scheduleAtFixedRate(
+                this::triggerTtlCleanupAcrossShards,
+                CLEANUP_INTERVAL_MS,
+                CLEANUP_INTERVAL_MS,
+                TimeUnit.MILLISECONDS
+        );
+    }
+
+    private void triggerTtlCleanupAcrossShards() {
+        log.info("Expired key(s) will be cleaned up");
+        try {
+            for (CacheSegment segment : segments) {
+                segment.submitTask(segment::internalCleanExpiredKeys);
+            }
+        } catch (Throwable t) {
+            log.error("Error occurred during TTL cleanup execution", t);
+        }
+    }
+
+    public void shutdown() {
+        log.info("CacheEngine is shutting down...");
+        if (ttlCleanerScheduler != null && !ttlCleanerScheduler.isShutdown()) {
+            ttlCleanerScheduler.shutdown();
+        }
+        log.info("CacheEngine shutdown successfully");
     }
 
     public Map<String, String> getInitCfg() {
@@ -476,6 +510,8 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
         private final BlockingQueue<Runnable> taskQueue = new LinkedTransferQueue<>();
         private long localOperationCount = 0;
         private static final int RESET_PERIOD = 100000;
+        private final PriorityQueue<TTLEntry> ttlHeap = new PriorityQueue<>();
+        private static final int CLEANUP_BATCH_LIMIT = 100;
 
         public CacheSegment(int segmentId, long maxSegmentSize, int segmentExpectedKeys) {
             this.maxSegmentSize = maxSegmentSize;
@@ -511,6 +547,32 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
             }
         }
 
+        public void internalCleanExpiredKeys() {
+            if (ttlHeap.isEmpty()) {
+                return;
+            }
+
+            long now = System.currentTimeMillis();
+            int cleanedCount = 0;
+
+            while (!ttlHeap.isEmpty() && cleanedCount < CLEANUP_BATCH_LIMIT) {
+                TTLEntry top = ttlHeap.peek();
+
+                if (top.expireTime() > now) {
+                    break;
+                }
+
+                ttlHeap.poll();
+
+                Value value = pairsStorage.get(top.key());
+                if (value != null && value.getTtl() != null && value.getTtl() <= now) {
+                    pairsStorage.remove(top.key());
+                    currentSizeBytes -= value.getSize();
+                    cleanedCount++;
+                }
+            }
+        }
+
         public String internalPut(String key, String value, Long ttl, Boolean notExists) {
             checkAndAgeLocal();
             if (notExists != null && notExists) {
@@ -522,8 +584,11 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
 
             Value newVal = new Value();
             newVal.setData(value);
+
+            long expireTime = -1;
             if (ttl != null && ttl > 0) {
-                newVal.setTtl(System.currentTimeMillis() + ttl);
+                expireTime = System.currentTimeMillis() + ttl;
+                newVal.setTtl(expireTime);
             }
 
             long newEntrySize = calculateSize(key, newVal.getData(), newVal.getTtl());
@@ -532,6 +597,10 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
             Value oldVal = pairsStorage.put(key, newVal);
             if (oldVal != null) {
                 currentSizeBytes -= oldVal.getSize();
+            }
+
+            if (expireTime > 0) {
+                ttlHeap.offer(new TTLEntry(key, expireTime));
             }
 
             currentSizeBytes += newEntrySize;
@@ -593,6 +662,7 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
             geoHashStorage.clear();
             memberToGeoHashStorage.clear();
             hashStorage.clear();
+            ttlHeap.clear();
         }
 
         private void evictUsingTinyLFU(String candidateKey) {

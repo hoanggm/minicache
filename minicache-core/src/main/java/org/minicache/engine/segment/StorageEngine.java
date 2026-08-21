@@ -3,17 +3,21 @@ package org.minicache.engine.segment;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.minicache.common.Command;
+import org.minicache.common.TTLEntry;
 import org.minicache.common.Value;
 import org.minicache.struct.bloomfilter.BloomFilter;
 import org.minicache.struct.freqsketch.FrequencySketch;
+import org.minicache.struct.geohash.GeoHashHelper;
+import org.minicache.struct.geohash.GeoSkipList;
 import org.minicache.struct.hash.CompactHash;
 import org.minicache.struct.skiplist.ConcurrentSkipList;
-import org.minicache.struct.geohash.GeoSkipList;
-import org.minicache.struct.geohash.GeoHashHelper;
 
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -24,6 +28,8 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
     private final AtomicLong globalOperationCount = new AtomicLong(0);
     private static final int RESET_PERIOD = 100000;
     private final Map<String, String> initCfg;
+    private final ScheduledExecutorService ttlCleanerScheduler;
+    private static final long CLEANUP_INTERVAL_MS = 1000 * 60 * 60;
 
     public StorageEngine(long maxSize) {
         var segmentCount = getOptimalSegmentCount();
@@ -50,10 +56,43 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
                 "maxSizePerSegment", String.valueOf(maxSegmentSize),
                 "segmentExpectedKeys", String.valueOf(segmentExpectedKeys)
         );
+
+        // Auto clean up expired key-value entry
+        this.ttlCleanerScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "minicache-segment-ttl-cleaner");
+            t.setDaemon(true);
+            return t;
+        });
+
+        this.ttlCleanerScheduler.scheduleAtFixedRate(
+                this::runTtlCleanup,
+                CLEANUP_INTERVAL_MS,
+                CLEANUP_INTERVAL_MS,
+                TimeUnit.MILLISECONDS
+        );
     }
 
     public Map<String, String> getInitCfg() {
         return this.initCfg;
+    }
+
+    private void runTtlCleanup() {
+        log.info("Expired key(s) will be cleaned up");
+        try {
+            for (CacheSegment seg : segments) {
+                seg.cleanExpiredKeys();
+            }
+        } catch (Throwable t) {
+            log.error("Error occurred during TTL cleanup execution", t);
+        }
+    }
+
+    public void shutdown() {
+        log.info("CacheEngine is shutting down...");
+        if (ttlCleanerScheduler != null && !ttlCleanerScheduler.isShutdown()) {
+            ttlCleanerScheduler.shutdown();
+        }
+        log.info("CacheEngine shutdown successfully");
     }
 
     private CacheSegment getSegment(String key) {
@@ -513,10 +552,46 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
         private final String GEO_KEY_PREFIX = "geo_";
         private final String HASH_KEY_PREFIX = "hs_";
         private final FrequencySketch sketch;
+        private final PriorityQueue<TTLEntry> ttlHeap = new PriorityQueue<>();
+        private static final int CLEANUP_BATCH_LIMIT = 100;
 
         public CacheSegment(long maxSegmentSize, int segmentExpectedKeys) {
             this.maxSegmentSize = maxSegmentSize;
             this.sketch = new FrequencySketch(segmentExpectedKeys);
+        }
+
+        public void cleanExpiredKeys() {
+            if (!rwLock.writeLock().tryLock()) {
+                return;
+            }
+
+            try {
+                if (ttlHeap.isEmpty()) {
+                    return;
+                }
+
+                long now = System.currentTimeMillis();
+                int cleanedCount = 0;
+
+                while (!ttlHeap.isEmpty() && cleanedCount < CLEANUP_BATCH_LIMIT) {
+                    TTLEntry top = ttlHeap.peek();
+
+                    if (top.expireTime() > now) {
+                        break;
+                    }
+
+                    ttlHeap.poll();
+
+                    Value value = pairsStorage.get(top.key());
+                    if (value != null && value.getTtl() != null && value.getTtl() <= now) {
+                        pairsStorage.remove(top.key());
+                        currentSizeBytes.addAndGet(-value.getSize());
+                        cleanedCount++;
+                    }
+                }
+            } finally {
+                rwLock.writeLock().unlock();
+            }
         }
 
         public String put(String key, String value, Long ttl, Boolean notExists) {
@@ -533,8 +608,11 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
 
                 Value newVal = new Value();
                 newVal.setData(value);
+
+                long expireTime = -1;
                 if (ttl != null && ttl > 0) {
-                    newVal.setTtl(System.currentTimeMillis() + ttl);
+                    expireTime = System.currentTimeMillis() + ttl;
+                    newVal.setTtl(expireTime);
                 }
 
                 long newEntrySize = calculateSize(key, newVal.getData(), newVal.getTtl());
@@ -543,6 +621,10 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
                 Value oldVal = pairsStorage.put(key, newVal);
                 if (oldVal != null) {
                     currentSizeBytes.addAndGet(-oldVal.getSize());
+                }
+
+                if (expireTime > 0) {
+                    ttlHeap.offer(new TTLEntry(key, expireTime));
                 }
 
                 currentSizeBytes.addAndGet(newEntrySize);
@@ -792,6 +874,7 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
                 memberToGeoHashStorage.clear();
                 geoHashStorage.clear();
                 hashStorage.clear();
+                ttlHeap.clear();
             } finally {
                 rwLock.writeLock().unlock();
             }

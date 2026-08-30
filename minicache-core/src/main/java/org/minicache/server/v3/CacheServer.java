@@ -67,6 +67,7 @@ public class CacheServer extends BaseCacheServer {
                     msg.setGeoLat(Double.valueOf(tokens[10]));
                     msg.setGeoLon(Double.valueOf(tokens[11]));
                     msg.setHsField(tokens[12]);
+                    msg.setFzFreq(Long.valueOf(tokens[13]));
 
                     if (asyncResponse) {
                         commandCacheHandler.get(msg.getCommand())
@@ -179,6 +180,9 @@ public class CacheServer extends BaseCacheServer {
                                     int limit = in.readInt();
                                     String hsField = in.readUTF();
 
+                                    long fzFreq = in.readLong();
+                                    int maxEditDist = in.readInt();
+
                                     if (opcode == 0x01) {
                                         if (raftNode.getLeader().equals(raftNode.getNodeId())) {
                                             sendBinaryResponse(out, (byte) 0x00, "LEADER");
@@ -228,6 +232,16 @@ public class CacheServer extends BaseCacheServer {
                                         case 0x34 -> cmd = Command.H_ALL;
                                         case 0x35 -> cmd = Command.H_RM;
                                         case 0x36 -> cmd = Command.H_DEL;
+                                        case 0x37 -> cmd = Command.FZ_ADD;
+                                        case 0x38 -> cmd = Command.FZ_SEARCH;
+                                        case 0x39 -> cmd = Command.FZ_SUGGEST;
+                                        case 0x40 -> cmd = Command.FZ_DEL;
+                                        case 0x41 -> cmd = Command.FZ_RM;
+                                        case 0x42 -> cmd = Command.FZ_EXACT;
+                                        case 0x43 -> cmd = Command.FZ_EXISTS;
+                                        case 0x44 -> cmd = Command.FZ_INCR;
+                                        case 0x45 -> cmd = Command.FZ_PHONETIC;
+                                        case 0x46 -> cmd = Command.FZ_RANDOM;
                                     }
 
                                     if (cmd == null || !commandCacheHandler.containsKey(cmd)) {
@@ -256,6 +270,8 @@ public class CacheServer extends BaseCacheServer {
                                         msg.setGeoRadius(geoRadius);
                                         msg.setLimit(limit);
                                         msg.setHsField(hsField);
+                                        msg.setFzFreq(fzFreq);
+                                        msg.setFzMaxEditDist(maxEditDist);
 
                                         if (asyncResponse) {
                                             Command finalCmd = cmd;
@@ -328,6 +344,8 @@ public class CacheServer extends BaseCacheServer {
                                         msg.setGeoMem2(geoMem2);
                                         msg.setGeoRadius(geoRadius);
                                         msg.setHsField(hsField);
+                                        msg.setFzFreq(fzFreq);
+                                        msg.setFzMaxEditDist(maxEditDist);
 
                                         if (asyncResponse) {
                                             Command finalCmd = cmd;
@@ -353,12 +371,12 @@ public class CacheServer extends BaseCacheServer {
                                                         log.info("WRITE DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
 
                                                         // Định dạng dữ liệu thành chuỗi đặc tả Log duy nhất chuyển sang cho tầng mạng Raft
-                                                        String raftCommandStr = String.format("%s|%s|%s|%d|%b|%d|%f|%f|%s|%s|%f|%f|%s",
+                                                        String raftCommandStr = String.format("%s|%s|%s|%d|%b|%d|%f|%f|%s|%s|%f|%f|%s|%d",
                                                                 finalCmd.name(), key, value,
                                                                 (long) timeToLive, notExists == 1,
                                                                 bloomExpectedKeys, bloomFalsePositiveRate,
                                                                 zsScore, zsMember, geoMem, geoLat, geoLon,
-                                                                hsField);
+                                                                hsField, fzFreq);
 
                                                         // Đồng bộ sang các node khác
                                                         raftNode.propose(raftCommandStr);
@@ -385,12 +403,12 @@ public class CacheServer extends BaseCacheServer {
                                             log.info("WRITE DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
 
                                             // Định dạng dữ liệu thành chuỗi đặc tả Log duy nhất chuyển sang cho tầng mạng Raft
-                                            String raftCommandStr = String.format("%s|%s|%s|%d|%b|%d|%f|%f|%s|%s|%f|%f|%s",
+                                            String raftCommandStr = String.format("%s|%s|%s|%d|%b|%d|%f|%f|%s|%s|%f|%f|%s|%d",
                                                     cmd.name(), key, value,
                                                     (long) timeToLive, notExists == 1,
                                                     bloomExpectedKeys, bloomFalsePositiveRate,
                                                     zsScore, zsMember, geoMem, geoLat, geoLon,
-                                                    hsField);
+                                                    hsField, fzFreq);
 
                                             // Đồng bộ sang các node khác
                                             raftNode.propose(raftCommandStr);

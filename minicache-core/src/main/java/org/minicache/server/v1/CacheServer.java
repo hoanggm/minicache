@@ -92,13 +92,14 @@ public class CacheServer extends BaseCacheServer {
         if (result == null) return "N|";
 
         return switch (cmd) {
-            case PUT, BF_ADD, BF_INIT, Z_POS, Z_ADD, Z_SCR, GEO_ADD, GEO_ENCODE, H_GET, H_SET -> "S|" + result;
-            case GET, LST_KEY, Z_RANGE, Z_TOP, Z_RSCR, GEO_SEARCH, GEO_DIST, GEO_GET, GEO_NB, H_ALL -> {
+            case PUT, BF_ADD, BF_INIT, Z_POS, Z_ADD, Z_SCR, GEO_ADD, GEO_ENCODE, H_GET, H_SET, FZ_ADD -> "S|" + result;
+            case GET, LST_KEY, Z_RANGE, Z_TOP, Z_RSCR, GEO_SEARCH, GEO_DIST, GEO_GET, GEO_NB, H_ALL,
+                    FZ_SEARCH, FZ_SUGGEST, FZ_EXACT, FZ_PHONETIC, FZ_EXISTS, FZ_RANDOM -> {
                 String value = (String) result;
                 yield "D|" + value.length() + "|" + value;
             }
             case DELETE, EXISTS, CLEAR, BF_EXISTS, BF_RM, BF_RS, Z_INCR, Z_RANK, Z_DEL, Z_RM, GEO_DEL,
-                    GEO_RM, GEO_EXISTS, H_RM, H_DEL -> "I|" + result;
+                    GEO_RM, GEO_EXISTS, H_RM, H_DEL, FZ_DEL, FZ_RM, FZ_INCR -> "I|" + result;
         };
     }
 
@@ -390,6 +391,81 @@ public class CacheServer extends BaseCacheServer {
                 if (tokens.size() == 2) {
                     msg.setCommand(Command.H_ALL);
                     msg.setKey(tokens.get(1));
+                }
+                break;
+            case "FZ.ADD":
+                if (tokens.size() == 4) {
+                    msg.setCommand(Command.FZ_ADD);
+                    msg.setKey(tokens.get(1));
+                    msg.setValue(tokens.get(2));
+                    msg.setFzFreq(Long.valueOf(tokens.get(3)));
+                }
+                break;
+            case "FZ.SEARCH":
+                if (tokens.size() == 4) {
+                    msg.setCommand(Command.FZ_SEARCH);
+                    msg.setKey(tokens.get(1));
+                    msg.setValue(tokens.get(2));
+                    msg.setLimit(Integer.valueOf(tokens.get(3)));
+                }
+                break;
+            case "FZ.SUGGEST":
+                if (tokens.size() == 5) {
+                    msg.setCommand(Command.FZ_SUGGEST);
+                    msg.setKey(tokens.get(1));
+                    msg.setValue(tokens.get(2));
+                    msg.setLimit(Integer.valueOf(tokens.get(3)));
+                    msg.setFzMaxEditDist(Integer.valueOf(tokens.get(4)));
+                }
+                break;
+            case "FZ.EXACT":
+                if (tokens.size() == 3) {
+                    msg.setCommand(Command.FZ_EXACT);
+                    msg.setKey(tokens.get(1));
+                    msg.setValue(tokens.get(2));
+                }
+                break;
+            case "FZ.INCR":
+                if (tokens.size() == 4) {
+                    msg.setCommand(Command.FZ_INCR);
+                    msg.setKey(tokens.get(1));
+                    msg.setValue(tokens.get(2));
+                    msg.setFzFreq(Long.valueOf(tokens.get(3)));
+                }
+                break;
+            case "FZ.RM":
+                if (tokens.size() == 3) {
+                    msg.setCommand(Command.FZ_RM);
+                    msg.setKey(tokens.get(1));
+                    msg.setValue(tokens.get(2));
+                }
+                break;
+            case "FZ.DEL":
+                if (tokens.size() == 2) {
+                    msg.setCommand(Command.FZ_DEL);
+                    msg.setKey(tokens.get(1));
+                }
+                break;
+            case "FZ.EXISTS":
+                if (tokens.size() == 3) {
+                    msg.setCommand(Command.FZ_EXISTS);
+                    msg.setKey(tokens.get(1));
+                    msg.setValue(tokens.get(2));
+                }
+                break;
+            case "FZ.PHONETIC":
+                if (tokens.size() == 4) {
+                    msg.setCommand(Command.FZ_PHONETIC);
+                    msg.setKey(tokens.get(1));
+                    msg.setValue(tokens.get(2));
+                    msg.setLimit(Integer.valueOf(tokens.get(3)));
+                }
+                break;
+            case "FZ.RANDOM":
+                if (tokens.size() == 3) {
+                    msg.setCommand(Command.FZ_RANDOM);
+                    msg.setKey(tokens.get(1));
+                    msg.setLimit(Integer.valueOf(tokens.get(2)));
                 }
                 break;
         }

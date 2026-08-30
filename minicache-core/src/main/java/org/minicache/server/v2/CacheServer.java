@@ -76,6 +76,9 @@ public class CacheServer extends BaseCacheServer {
                                     int limit = in.readInt();
                                     String hsField = in.readUTF();
 
+                                    long fzFreq = in.readLong();
+                                    int maxEditDist = in.readInt();
+
                                     var startTime = System.nanoTime();
                                     if (opcode == 0x01) {
                                         sendBinaryResponse(out, (byte) 0x00, "PONG");
@@ -123,6 +126,16 @@ public class CacheServer extends BaseCacheServer {
                                         case 0x34 -> cmd = Command.H_ALL;
                                         case 0x35 -> cmd = Command.H_RM;
                                         case 0x36 -> cmd = Command.H_DEL;
+                                        case 0x37 -> cmd = Command.FZ_ADD;
+                                        case 0x38 -> cmd = Command.FZ_SEARCH;
+                                        case 0x39 -> cmd = Command.FZ_SUGGEST;
+                                        case 0x40 -> cmd = Command.FZ_DEL;
+                                        case 0x41 -> cmd = Command.FZ_RM;
+                                        case 0x42 -> cmd = Command.FZ_EXACT;
+                                        case 0x43 -> cmd = Command.FZ_EXISTS;
+                                        case 0x44 -> cmd = Command.FZ_INCR;
+                                        case 0x45 -> cmd = Command.FZ_PHONETIC;
+                                        case 0x46 -> cmd = Command.FZ_RANDOM;
                                     }
 
                                     if (cmd == null || !commandCacheHandler.containsKey(cmd)) {
@@ -152,6 +165,8 @@ public class CacheServer extends BaseCacheServer {
                                     msg.setGeoRadius(geoRadius);
                                     msg.setLimit(limit);
                                     msg.setHsField(hsField);
+                                    msg.setFzFreq(fzFreq);
+                                    msg.setFzMaxEditDist(maxEditDist);
 
                                     if (asyncResponse) {
                                         Command finalCmd = cmd;

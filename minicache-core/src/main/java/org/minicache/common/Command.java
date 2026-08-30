@@ -35,5 +35,15 @@ public enum Command {
     H_RM,
     H_DEL,
     H_ALL,
-    H_SET
+    H_SET,
+    FZ_ADD,
+    FZ_SEARCH,
+    FZ_SUGGEST,
+    FZ_EXACT,
+    FZ_INCR,
+    FZ_RM,
+    FZ_DEL,
+    FZ_EXISTS,
+    FZ_PHONETIC,
+    FZ_RANDOM
 }

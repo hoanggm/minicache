@@ -45,7 +45,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                             null, null, null,
                             null, null, null, null, null, null,
                             null, null, null, null, null, null,
-                            null);
+                            null, null, null);
                 }
                 case "GET" -> {
                     if (parts.length < 2) {
@@ -56,7 +56,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                             null, null, null, null,
                             null, null, null, null, null,
                             null, null, null, null, null, null,
-                            null);
+                            null, null, null);
                 }
                 case "EXISTS" -> {
                     if (parts.length < 2) {
@@ -67,7 +67,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                             null, null, null, null,
                             null, null, null, null, null,
                             null, null, null, null, null, null,
-                            null);
+                            null, null, null);
                 }
                 case "SET" -> {
                     if (parts.length < 3) {
@@ -81,7 +81,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                             null, null, null, null,
                             null, null, null, null, null,
                             null, null, null, null, null, null,
-                            null);
+                            null, null, null);
                 }
                 case "DEL" -> {
                     if (parts.length < 2) {
@@ -92,28 +92,28 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                             null, null, null, null,
                             null, null, null, null, null,
                             null, null, null, null, null, null,
-                            null);
+                            null, null, null);
                 }
                 case "KEYS" -> {
                     sendBinaryRequest(out, (byte) 0x05, null, null, "0", "0",
                             null, null, null, null,
                             null, null, null, null, null,
                             null, null, null, null, null, null,
-                            null);
+                            null, null, null);
                 }
                 case "CLEAR" -> {
                     sendBinaryRequest(out, (byte) 0x07, null, null, "0", "0",
                             null, null, null, null,
                             null, null, null, null, null,
                             null, null, null, null, null, null,
-                            null);
+                            null, null, null);
                 }
                 case "EXIT" -> {
                     sendBinaryRequest(out, (byte) 0x00, null, null, "0", "0",
                             null, null, null, null,
                             null, null, null, null, null,
                             null, null, null, null, null, null,
-                            null);
+                            null, null, null);
                 }
                 case "BF.INIT" -> {
                     if (parts.length < 4) {
@@ -124,7 +124,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                             parts[2], parts[3], null, null,
                             null, null, null, null, null,
                             null, null, null, null, null, null,
-                            null);
+                            null, null, null);
                 }
                 case "BF.ADD" -> {
                     if (parts.length < 3) {
@@ -135,7 +135,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                             null, null, null, null,
                             null, null, null, null, null,
                             null, null, null, null, null, null,
-                            null);
+                            null, null, null);
                 }
                 case "BF.EXISTS" -> {
                     if (parts.length < 2) {
@@ -146,7 +146,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                             null, null, null, null,
                             null, null, null, null, null,
                             null, null, null, null, null, null,
-                            null);
+                            null, null, null);
                 }
                 case "BF.RM" -> {
                     if (parts.length < 2) {
@@ -157,7 +157,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                             null, null, null, null,
                             null, null, null, null, null,
                             null, null, null, null, null, null,
-                            null);
+                            null, null, null);
                 }
                 case "BF.RS" -> {
                     if (parts.length < 2) {
@@ -168,7 +168,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                             null, null, null, null,
                             null, null, null, null, null,
                             null, null, null, null, null, null,
-                            null);
+                            null, null, null);
                 }
                 case "Z.SCR" -> {
                     if (parts.length < 3) {
@@ -179,7 +179,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                             null, null, parts[2], null,
                             null, null, null, null, null,
                             null, null, null, null, null, null,
-                            null);
+                            null, null, null);
                 }
                 case "Z.ADD" -> {
                     if (parts.length < 5) {
@@ -190,7 +190,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                             null, null, parts[3], null,
                             null, null, parts[2], null, null,
                             null, null, null, null, null, null,
-                            null);
+                            null, null, null);
                 }
                 case "Z.RANK" -> {
                     if (parts.length < 3) {
@@ -201,7 +201,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                             null, null, parts[2], null,
                             null, null, null, null, null,
                             null, null, null, null, null, null,
-                            null);
+                            null, null, null);
                 }
                 case "Z.RANGE" -> {
                     if (parts.length < 4) {
@@ -212,7 +212,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                             null, null, null, null,
                             parts[2], parts[3], null, null, null,
                             null, null, null, null, null, null,
-                            null);
+                            null, null, null);
                 }
                 case "Z.RSCR" -> {
                     if (parts.length < 4) {
@@ -223,7 +223,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                             null, null, null, null,
                             null, null, null, parts[2], parts[3],
                             null, null, null, null, null, null,
-                            null);
+                            null, null, null);
                 }
                 case "Z.POS" -> {
                     if (parts.length < 3) {
@@ -234,7 +234,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                             null, null, null, parts[2],
                             null, null, null, null, null,
                             null, null, null, null, null, null,
-                            null);
+                            null, null, null);
                 }
                 case "Z.INCR" -> {
                     if (parts.length < 4) {
@@ -245,7 +245,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                             null, null, parts[2], null,
                             null, null, parts[3], null, null,
                             null, null, null, null, null, null,
-                            null);
+                            null, null, null);
                 }
                 case "Z.RM" -> {
                     if (parts.length < 3) {
@@ -256,7 +256,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                             null, null, parts[2], null,
                             null, null, null, null, null,
                             null, null, null, null, null, null,
-                            null);
+                            null, null, null);
                 }
                 case "Z.TOP" -> {
                     if (parts.length < 3) {
@@ -267,7 +267,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                             null, null, parts[2], null,
                             parts[2], null, null, null, null,
                             null, null, null, null, null, null,
-                            null);
+                            null, null, null);
                 }
                 case "Z.DEL" -> {
                     if (parts.length < 2) {
@@ -278,7 +278,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                             null, null, null, null,
                             null, null, null, null, null,
                             null, null, null, null, null, null,
-                            null);
+                            null, null, null);
                 }
                 case "GEO.ADD" -> {
                     if (parts.length < 5) {
@@ -288,7 +288,8 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                     sendBinaryRequest(out, (byte) 0x22, parts[1], null, "0", "0",
                             null, null, null, null,
                             null, null, null, null, null,
-                            parts[2], parts[3], parts[4], null, null, null, null);
+                            parts[2], parts[3], parts[4], null, null, null, null,
+                            null, null);
                 }
                 case "GEO.SEARCH" -> {
                     if (parts.length < 5) {
@@ -299,7 +300,8 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                     sendBinaryRequest(out, (byte) 0x23, parts[1], null, "0", "0",
                             null, null, null, null,
                             null, null, null, null, null,
-                            null, parts[2], parts[3], null, parts[4], limit, null);
+                            null, parts[2], parts[3], null, parts[4], limit, null,
+                            null, null);
                 }
                 case "GEO.DIST" -> {
                     if (parts.length < 4) {
@@ -309,7 +311,8 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                     sendBinaryRequest(out, (byte) 0x24, parts[1], null, "0", "0",
                             null, null, null, null,
                             null, null, null, null, null,
-                            parts[2], null, null, parts[3], null, null, null);
+                            parts[2], null, null, parts[3], null, null, null,
+                            null, null);
                 }
                 case "GEO.DEL" -> {
                     if (parts.length < 2) {
@@ -319,7 +322,8 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                     sendBinaryRequest(out, (byte) 0x25, parts[1], null, "0", "0",
                             null, null, null, null,
                             null, null, null, null, null,
-                            null, null, null, null, null, null, null);
+                            null, null, null, null, null, null,
+                            null, null, null);
                 }
                 case "GEO.RM" -> {
                     if (parts.length < 3) {
@@ -330,7 +334,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                             null, null, null, null,
                             null, null, null, null, null,
                             parts[2], null, null, null, null, null,
-                            null);
+                            null, null, null);
                 }
                 case "GEO.GET" -> {
                     if (parts.length < 3) {
@@ -341,7 +345,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                             null, null, null, null,
                             null, null, null, null, null,
                             parts[2], null, null, null, null, null,
-                            null);
+                            null, null, null);
                 }
                 case "GEO.NB" -> {
                     if (parts.length < 3) {
@@ -352,7 +356,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                             null, null, null, null,
                             null, null, null, null, null,
                             parts[2], null, null, null, null, null,
-                            null);
+                            null, null, null);
                 }
                 case "GEO.EXISTS" -> {
                     if (parts.length < 3) {
@@ -363,7 +367,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                             null, null, null, null,
                             null, null, null, null, null,
                             parts[2], null, null, null, null, null,
-                            null);
+                            null, null, null);
                 }
                 case "GEO.ENCODE" -> {
                     if (parts.length < 3) {
@@ -374,7 +378,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                             null, null, null, null,
                             null, null, null, null, null,
                             parts[2], null, null, null, null, null,
-                            null);
+                            null, null, null);
                 }
                 case "H.SET" -> {
                     if (parts.length < 4) {
@@ -385,7 +389,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                             null, null, null, null,
                             null, null, null, null, null,
                             null, null, null, null, null, null,
-                            parts[2]);
+                            parts[2], null, null);
                 }
                 case "H.GET" -> {
                     if (parts.length < 3) {
@@ -396,7 +400,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                             null, null, null, null,
                             null, null, null, null, null,
                             null, null, null, null, null, null,
-                            parts[2]);
+                            parts[2], null, null);
                 }
                 case "H.ALL" -> {
                     if (parts.length < 2) {
@@ -407,7 +411,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                             null, null, null, null,
                             null, null, null, null, null,
                             null, null, null, null, null, null,
-                            null);
+                            null, null, null);
                 }
                 case "H.RM" -> {
                     if (parts.length < 3) {
@@ -418,7 +422,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                             null, null, null, null,
                             null, null, null, null, null,
                             null, null, null, null, null, null,
-                            parts[2]);
+                            parts[2], null, null);
                 }
                 case "H.DEL" -> {
                     if (parts.length < 2) {
@@ -429,7 +433,117 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                             null, null, null, null,
                             null, null, null, null, null,
                             null, null, null, null, null, null,
-                            null);
+                            null, null, null);
+                }
+                case "FZ.SEARCH" -> {
+                    if (parts.length < 4) {
+                        log.info("(error) ERR Invalid command. Syntax: FZ.SEARCH <key> \"<query>\" <top>");
+                        return;
+                    }
+                    sendBinaryRequest(out, (byte) 0x38, parts[1], parts[2].replaceAll("\"",""),
+                            "0", "0", null, null,
+                            null, null, null, null, null, null,
+                            null, null, null, null, null, null,
+                            parts[3], null, null, null);
+                }
+                case "FZ.ADD" -> {
+                    if (parts.length < 4) {
+                        log.info("(error) ERR Invalid command. Syntax: FZ.ADD <key> \"<word>\" <frequency>");
+                        return;
+                    }
+                    sendBinaryRequest(out, (byte) 0x37, parts[1], parts[2].replaceAll("\"",""),
+                            "0", "0", null, null,
+                            null, null, null, null, null, null,
+                            null, null, null, null, null, null,
+                            null, null, parts[3], null);
+                }
+                case "FZ.SUGGEST" -> {
+                    if (parts.length < 5) {
+                        log.info("(error) ERR Invalid command. Syntax: FZ.SUGGEST <key> \"<query>\" <top> <maxEditDist>");
+                        return;
+                    }
+                    sendBinaryRequest(out, (byte) 0x39, parts[1], parts[2].replaceAll("\"",""),
+                            "0", "0", null, null,
+                            null, null, null, null, null, null,
+                            null, null, null, null, null, null,
+                            parts[3], null, null, parts[4]);
+                }
+                case "FZ.DEL" -> {
+                    if (parts.length < 2) {
+                        log.info("(error) ERR Invalid command. Syntax: FZ.DEL <key>");
+                        return;
+                    }
+                    sendBinaryRequest(out, (byte) 0x40, parts[1], null, "0", "0",
+                            null, null, null, null,
+                            null, null, null, null, null,
+                            null, null, null, null, null, null,
+                            null, null, null);
+                }
+                case "FZ.RM" -> {
+                    if (parts.length < 3) {
+                        log.info("(error) ERR Invalid command. Syntax: FZ.RM <key> \"<word>\"");
+                        return;
+                    }
+                    sendBinaryRequest(out, (byte) 0x41, parts[1], parts[2].replaceAll("\"",""),
+                            "0", "0", null, null,
+                            null, null, null, null, null, null,
+                            null, null, null, null, null, null,
+                            null, null, null, null);
+                }
+                case "FZ.EXACT" -> {
+                    if (parts.length < 3) {
+                        log.info("(error) ERR Invalid command. Syntax: FZ.EXACT <key> \"<word>\"");
+                        return;
+                    }
+                    sendBinaryRequest(out, (byte) 0x42, parts[1], parts[2].replaceAll("\"",""),
+                            "0", "0", null, null,
+                            null, null, null, null, null, null,
+                            null, null, null, null, null, null,
+                            null,null, null, null);
+                }
+                case "FZ.EXISTS" -> {
+                    if (parts.length < 3) {
+                        log.info("(error) ERR Invalid command. Syntax: FZ.EXISTS <key> \"<word>\"");
+                        return;
+                    }
+                    sendBinaryRequest(out, (byte) 0x43, parts[1], parts[2].replaceAll("\"",""),
+                            "0", "0", null, null,
+                            null, null, null, null, null, null,
+                            null, null, null, null, null, null,
+                            null, null, null, null);
+                }
+                case "FZ.INCR" -> {
+                    if (parts.length < 4) {
+                        log.info("(error) ERR Invalid command. Syntax: FZ.INCR <key> \"<word>\" <increment>");
+                        return;
+                    }
+                    sendBinaryRequest(out, (byte) 0x44, parts[1], parts[2].replaceAll("\"",""),
+                            "0", "0", null, null,
+                            null, null, null, null, null, null,
+                            null, null, null, null, null, null,
+                            null,null, parts[3], null);
+                }
+                case "FZ.PHONETIC" -> {
+                    if (parts.length < 4) {
+                        log.info("(error) ERR Invalid command. Syntax: FZ.PHONETIC <key> \"<input>\" <limit>");
+                        return;
+                    }
+                    sendBinaryRequest(out, (byte) 0x45, parts[1], parts[2].replaceAll("\"",""),
+                            "0", "0", null, null,
+                            null, null, null, null, null, null,
+                            null, null, null, null, null, null,
+                            parts[3],null, null, null);
+                }
+                case "FZ.RANDOM" -> {
+                    if (parts.length < 3) {
+                        log.info("(error) ERR Invalid command. Syntax: FZ.RANDOM <key> <count>");
+                        return;
+                    }
+                    sendBinaryRequest(out, (byte) 0x46, parts[1], null, "0", "0",
+                            null, null, null, null,
+                            null, null, null, null, null,
+                            null, null, null, null, null, parts[2],
+                            null, null, null);
                 }
                 default -> {
                     log.info("(error) ERR Invalid command: '{}'", action);
@@ -494,7 +608,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
                                           String zsScore, String zsStartScr, String zsStopScr,
                                           String geoMem, String geoLat, String geoLon,
                                           String geoMem2, String geoRadius, String limit,
-                                          String hsField) {
+                                          String hsField, String fzFreq, String maxEditDist) {
         try {
             var keyBytes = (key != null)
                     ? key.getBytes(StandardCharsets.UTF_8)
@@ -554,6 +668,9 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
 
             out.writeInt(limit != null ? Integer.parseInt(limit) : 0);
             out.writeUTF(hsField != null ? hsField : "");
+
+            out.writeLong(fzFreq != null ? Long.parseLong(fzFreq) : 0L);
+            out.writeInt(maxEditDist != null ? Integer.parseInt(maxEditDist) : 0);
 
             out.flush();
         } catch (Exception ex) {

@@ -22,6 +22,8 @@ public class Message {
     private String geoMem2;
     private Double geoRadius;
     private String hsField;
+    private Long fzFreq;
+    private Integer fzMaxEditDist;
 
     public Command getCommand() {
         return command;
@@ -189,5 +191,21 @@ public class Message {
 
     public void setHsField(String hsField) {
         this.hsField = hsField;
+    }
+
+    public Long getFzFreq() {
+        return fzFreq;
+    }
+
+    public void setFzFreq(Long fzFreq) {
+        this.fzFreq = fzFreq;
+    }
+
+    public Integer getFzMaxEditDist() {
+        return fzMaxEditDist;
+    }
+
+    public void setFzMaxEditDist(Integer fzMaxEditDist) {
+        this.fzMaxEditDist = fzMaxEditDist;
     }
 }

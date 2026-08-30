@@ -8,6 +8,8 @@ import org.minicache.common.TTLEntry;
 import org.minicache.common.Value;
 import org.minicache.struct.bloomfilter.BloomFilter;
 import org.minicache.struct.freqsketch.FrequencySketch;
+import org.minicache.struct.fuzzy.FuzzyMultiWordData;
+import org.minicache.struct.fuzzy.FuzzySearchData;
 import org.minicache.struct.geohash.GeoHashHelper;
 import org.minicache.struct.geohash.GeoSkipList;
 import org.minicache.struct.hash.CompactHash;
@@ -318,7 +320,7 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
     }
 
     public CompletableFuture<Integer> geoExistsAsync(String key, String member) {
-        log.info("GEO.EXIST ===> key: {}, member: {}", key, member);
+        log.info("GEO.EXISTS ===> key: {}, member: {}", key, member);
         return submitToShard(key, () -> getSegment(key).internalGeoExists(key, member));
     }
 
@@ -350,6 +352,56 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
     public CompletableFuture<String> hGetAllAsync(String key) {
         log.info("H.ALL ===> key: {}", key);
         return submitToShard(key, () -> getSegment(key).internalHGetAll(key));
+    }
+
+    public CompletableFuture<String> fzAddAsync(String key, String word, Long frequency) {
+        log.info("FZ.ADD ===> key: {}, word: \"{}\", frequency: {}", key, word, frequency);
+        return submitToShard(key, () -> getSegment(key).internalFzAdd(key, word, frequency));
+    }
+
+    public CompletableFuture<String> fzSearchAsync(String key, String query, Integer topN) {
+        log.info("FZ.SEARCH ===> key: {}, query: \"{}\", top: {}", key, query, topN);
+        return submitToShard(key, () -> getSegment(key).internalFzSearch(key, query, topN));
+    }
+
+    public CompletableFuture<String> fzSuggestAsync(String key, String query, Integer topN, Integer maxEditDist) {
+        log.info("FZ.SUGGEST ===> key: {}, query: \"{}\", top: {}, maxEditDist: {}", key, query, topN, maxEditDist);
+        return submitToShard(key, () -> getSegment(key).internalFzSuggest(key, query, topN, maxEditDist));
+    }
+
+    public CompletableFuture<String> fzGetExactAsync(String key, String word) {
+        log.info("FZ.EXACT ===> key: {}, word: \"{}\"", key, word);
+        return submitToShard(key, () -> getSegment(key).internalFzGetExact(key, word));
+    }
+
+    public CompletableFuture<Integer> fzIncrByAsync(String key, String word, Long increment) {
+        log.info("FZ.INCR ===> key: {}, word: \"{}\", increment: {}", key, word, increment);
+        return submitToShard(key, () -> getSegment(key).internalFzIncrBy(key, word, increment));
+    }
+
+    public CompletableFuture<Integer> fzRmAsync(String key, String word) {
+        log.info("FZ.RM ===> key: {}, word: \"{}\"", key, word);
+        return submitToShard(key, () -> getSegment(key).internalFzRm(key, word));
+    }
+
+    public CompletableFuture<Integer> fzDelAsync(String key) {
+        log.info("FZ.DEL ===> key: {}", key);
+        return submitToShard(key, () -> getSegment(key).internalFzDel(key));
+    }
+
+    public CompletableFuture<Integer> fzExistsAsync(String key, String word) {
+        log.info("FZ.EXISTS ===> key: {}, word: \"{}\"", key, word);
+        return submitToShard(key, () -> getSegment(key).internalFzExists(key, word));
+    }
+
+    public CompletableFuture<String> fzPhoneticAsync(String key, String input, Integer limit) {
+        log.info("FZ.PHONETIC ===> key: {}, input: \"{}\", limit: {}", key, input, limit);
+        return submitToShard(key, () -> getSegment(key).internalFzPhonetic(key, input, limit));
+    }
+
+    public CompletableFuture<String> fzRanAsync(String key, Integer count) {
+        log.info("FZ.RANDOM ===> key: {}, count: {}", key, count);
+        return submitToShard(key, () -> getSegment(key).internalFzRandom(key, count));
     }
 
     public String put(String key, String value, Long ttl, Boolean notExists) {
@@ -492,6 +544,47 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
         return null;
     }
 
+    public String fzAdd(String key, String word, Long frequency) {
+        return null;
+    }
+
+    public String fzSearch(String key, String query, Integer topN) {
+        return null;
+    }
+
+    public String fzSuggest(String key, String query, Integer topN, Integer maxEditDist) {
+        return null;
+    }
+
+    public String fzGetExact(String key, String word) {
+        return null;
+    }
+
+    public Integer fzIncrBy(String key, String word, Long increment) {
+        return null;
+    }
+
+
+    public Integer fzRm(String key, String word) {
+        return null;
+    }
+
+    public Integer fzDel(String key) {
+        return null;
+    }
+
+    public Integer fzExists(String key, String word) {
+        return null;
+    }
+
+    public String fzPhonetic(String key, String input, Integer limit) {
+        return null;
+    }
+
+    public String fzRan(String key, Integer count) {
+        return null;
+    }
+
     private static class CacheSegment {
         private final long maxSegmentSize;
         private long currentSizeBytes = 0;
@@ -502,10 +595,13 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
         private final Map<String, GeoSkipList> geoHashStorage = new HashMap<>();
         private final Map<String, Long> memberToGeoHashStorage = new HashMap<>();
         private final Map<String, CompactHash> hashStorage = new HashMap<>();
+        private final Map<String, FuzzySearchData> fzStorage = new HashMap<>();
+        private final Map<String, FuzzyMultiWordData> fzMultiWordStorage = new HashMap<>();
         private final String BLOOM_FILTERS_KEY_PREFIX = "bf_";
         private final String SKIP_LISTS_KEY_PREFIX = "zs_";
         private final String GEO_KEY_PREFIX = "geo_";
         private final String HASH_KEY_PREFIX = "hs_";
+        private final String FUZZY_KEY_PREFIX = "fz_";
         private final FrequencySketch sketch;
         private final BlockingQueue<Runnable> taskQueue = new LinkedTransferQueue<>();
         private long localOperationCount = 0;
@@ -663,6 +759,8 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
             memberToGeoHashStorage.clear();
             hashStorage.clear();
             ttlHeap.clear();
+            fzStorage.clear();
+            fzMultiWordStorage.clear();
         }
 
         private void evictUsingTinyLFU(String candidateKey) {
@@ -708,6 +806,7 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
             if (!skipListsStorage.isEmpty()) stores.add(skipListsStorage.keySet());
             if (!geoHashStorage.isEmpty()) stores.add(geoHashStorage.keySet());
             if (!hashStorage.isEmpty()) stores.add(hashStorage.keySet());
+            if (!fzStorage.isEmpty()) stores.add(fzStorage.keySet());
 
             if (stores.isEmpty()) return samples;
 
@@ -725,7 +824,8 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
                     }
                 }
                 long totalCurrentKeys = (long) pairsStorage.size() + bloomFiltersStorage.size()
-                        + skipListsStorage.size() + geoHashStorage.size() + hashStorage.size();
+                        + skipListsStorage.size() + geoHashStorage.size() + hashStorage.size()
+                        + fzStorage.size();
                 if (samples.size() >= totalCurrentKeys) break;
             }
             return samples;
@@ -762,6 +862,14 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
             if (removedHash != null) {
                 long keyMetadataBytes = key.getBytes(StandardCharsets.UTF_8).length + 32;
                 long totalFreedBytes = keyMetadataBytes + removedHash.getEstimatedBytes();
+                currentSizeBytes -= totalFreedBytes;
+            }
+
+            FuzzySearchData removedFz = fzStorage.remove(key);
+            fzMultiWordStorage.remove(key);
+            if (removedFz != null) {
+                long keyMetadataBytes = key.getBytes(StandardCharsets.UTF_8).length + 32;
+                long totalFreedBytes = keyMetadataBytes + removedFz.getEstimatedBytes();
                 currentSizeBytes -= totalFreedBytes;
             }
         }
@@ -1360,6 +1468,250 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
             }
 
             return 0;
+        }
+
+        public String internalFzAdd(String key, String word, long frequency) {
+            checkAndAgeLocal();
+            String internalKey = FUZZY_KEY_PREFIX + key;
+            var fzEngine = fzStorage.computeIfAbsent(internalKey, k -> {
+                var engine = new FuzzySearchData();
+                fzMultiWordStorage.put(k, new FuzzyMultiWordData(engine));
+                return engine;
+            });
+
+            long bytesBefore = fzEngine.getEstimatedBytes();
+
+            fzEngine.addWord(word, frequency);
+
+            var multiEngine = fzMultiWordStorage.get(internalKey);
+            if (multiEngine != null) {
+                multiEngine.indexPhrase(word, frequency);
+            }
+
+            long bytesAfter = fzEngine.getEstimatedBytes();
+
+            currentSizeBytes += (bytesAfter - bytesBefore);
+            sketch.increment(internalKey);
+
+            if (currentSizeBytes > maxSegmentSize) {
+                evictUsingTinyLFU(internalKey);
+            }
+            return "OK";
+        }
+
+        public String internalFzSearch(String key, String query, int topN) {
+            checkAndAgeLocal();
+            key = FUZZY_KEY_PREFIX + key;
+            var multiEngine = fzMultiWordStorage.get(key);
+            if (multiEngine == null) return "[]";
+
+            sketch.increment(key);
+            var results = multiEngine.processQuery(query, topN);
+
+            StringBuilder res = new StringBuilder();
+            res.append("[");
+            boolean isFirst = true;
+            for (var item : results) {
+                if (!isFirst) {
+                    res.append(",");
+                }
+                res.append("\"").append(item.phrase()).append("\"");
+                isFirst = false;
+            }
+            res.append("]");
+
+            return res.toString();
+        }
+
+        public String internalFzSuggest(String key, String query, int topN, int maxEditDist) {
+            checkAndAgeLocal();
+            key = FUZZY_KEY_PREFIX + key;
+            var fzEngine = fzStorage.get(key);
+            if (fzEngine == null) return "[]";
+
+            sketch.increment(key);
+            var results = fzEngine.search(query, topN, maxEditDist);
+
+            StringBuilder res = new StringBuilder();
+            res.append("[");
+            boolean isFirst = true;
+
+            for (var item : results) {
+                if (!isFirst) {
+                    res.append(",");
+                }
+                res.append(item.toString());
+                isFirst = false;
+            }
+            res.append("]");
+
+            return res.toString();
+        }
+
+        public String internalFzGetExact(String key, String word) {
+            checkAndAgeLocal();
+            key = FUZZY_KEY_PREFIX + key;
+            var fzEngine = fzStorage.get(key);
+            if (fzEngine == null) return null;
+
+            sketch.increment(key);
+            var entry = fzEngine.getExact(word);
+
+            if (entry == null) {
+                return null;
+            }
+
+            return "{" + "\"word\":\"" + entry.word() + "\"" +
+                    "," +
+                    "\"frequency\":" + entry.frequency() +
+                    "," +
+                    "\"code\":\"" + entry.soundexCode() + "\"" +
+                    "}";
+        }
+
+        public Integer internalFzIncrBy(String key, String word, long increment) {
+            checkAndAgeLocal();
+            key = FUZZY_KEY_PREFIX + key;
+            var fzEngine = fzStorage.get(key);
+            if (fzEngine == null) return 0;
+
+            boolean updated = fzEngine.incrementFrequency(word, increment);
+            if (updated) {
+                sketch.increment(key);
+                return 1;
+            }
+            return 0;
+        }
+
+        public Integer internalFzRm(String key, String word) {
+            checkAndAgeLocal();
+            key = FUZZY_KEY_PREFIX + key;
+            var fzEngine = fzStorage.get(key);
+            if (fzEngine == null) return 0;
+
+            long bytesBefore = fzEngine.getEstimatedBytes();
+            boolean removed = fzEngine.removeWord(word);
+            if (removed) {
+                long bytesAfter = fzEngine.getEstimatedBytes();
+                currentSizeBytes += (bytesAfter - bytesBefore);
+                return 1;
+            }
+            return 0;
+        }
+
+        public Integer internalFzDel(String key) {
+            checkAndAgeLocal();
+            key = FUZZY_KEY_PREFIX + key;
+            var fzEngine = fzStorage.remove(key);
+            fzMultiWordStorage.remove(key);
+            if (fzEngine != null) {
+                long keyMetadataBytes = key.getBytes(StandardCharsets.UTF_8).length + 32;
+                long totalFreedBytes = keyMetadataBytes + fzEngine.getEstimatedBytes();
+                currentSizeBytes -= totalFreedBytes;
+                return 1;
+            }
+            return 0;
+        }
+
+        public Integer internalFzExists(String key, String word) {
+            checkAndAgeLocal();
+            key = FUZZY_KEY_PREFIX + key;
+            var engine = fzStorage.get(key);
+            if (engine == null) {
+                return 0;
+            }
+
+            var result = engine.getExact(word);
+            if (result == null) {
+                return 0;
+            }
+
+            sketch.increment(key);
+            return 1;
+        }
+
+        public String internalFzPhonetic(String key, String input, int limit) {
+            String cleanInput = input.toLowerCase().trim();
+
+            String soundexCode = (input.length() == 4 && Character.isLetter(input.charAt(0))
+                    && Character.isDigit(input.charAt(1))
+                    && Character.isDigit(input.charAt(2))
+                    && Character.isDigit(input.charAt(3)))
+                    ? cleanInput.toUpperCase()
+                    : org.minicache.struct.fuzzy.Soundex.encode(cleanInput);
+
+            key = FUZZY_KEY_PREFIX + key;
+            var engine = fzStorage.get(key);
+            if (engine == null) {
+                return "[]";
+            }
+
+            List<String> wordsInGroup = engine.getWordsBySoundex(soundexCode);
+            if (wordsInGroup.isEmpty()) {
+                return "[]";
+            }
+
+            var results = wordsInGroup.stream()
+                    .map(engine::getExact)
+                    .filter(Objects::nonNull)
+                    .sorted(Comparator.comparingLong(FuzzySearchData.WordInfo::frequency).reversed())
+                    .limit(limit)
+                    .toList();
+            sketch.increment(key);
+
+            StringBuilder res = new StringBuilder();
+            res.append("[");
+            boolean isFirst = true;
+
+            for (var item : results) {
+                if (!isFirst) {
+                    res.append(",");
+                }
+                var itemAsString = "{" + "\"word\":\"" + item.word() + "\"" +
+                        "," +
+                        "\"frequency\":" + item.frequency() +
+                        "," +
+                        "\"code\":\"" + item.soundexCode() + "\"" +
+                        "}";
+                res.append(itemAsString);
+                isFirst = false;
+            }
+            res.append("]");
+
+            return res.toString();
+        }
+
+        public String internalFzRandom(String key, int count) {
+            checkAndAgeLocal();
+            key = FUZZY_KEY_PREFIX + key;
+            var engine = fzStorage.get(key);
+            if (engine == null) return "[]";
+
+            var dict = engine.getDictionary();
+            int totalWords = dict.size();
+            if (totalWords == 0) return "[]";
+
+            int limit = Math.min(count, totalWords);
+
+            int skipIndex = ThreadLocalRandom.current().nextInt(Math.max(1, totalWords - limit));
+
+            var results = dict.values().stream()
+                    .skip(skipIndex)
+                    .limit(limit)
+                    .toList();
+
+            StringBuilder res = new StringBuilder("[");
+            boolean isFirst = true;
+            for (FuzzySearchData.WordInfo item : results) {
+                if (!isFirst) {
+                    res.append(",");
+                }
+                res.append("\"").append(item.word()).append("\"");
+                isFirst = false;
+            }
+            res.append("]");
+
+            return res.toString();
         }
     }
 }

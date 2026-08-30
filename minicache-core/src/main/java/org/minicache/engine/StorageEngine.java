@@ -80,6 +80,26 @@ public abstract class StorageEngine {
 
     public abstract String hGetAll(String key);
 
+    public abstract String fzAdd(String key, String word, Long frequency);
+
+    public abstract String fzSearch(String key, String query, Integer topN);
+
+    public abstract String fzSuggest(String key, String query, Integer topN, Integer maxEditDist);
+
+    public abstract String fzGetExact(String key, String word);
+
+    public abstract Integer fzIncrBy(String key, String word, Long increment);
+
+    public abstract Integer fzRm(String key, String word);
+
+    public abstract Integer fzDel(String key);
+
+    public abstract Integer fzExists(String key, String word);
+
+    public abstract String fzPhonetic(String key, String input, Integer limit);
+
+    public abstract String fzRan(String key, Integer count);
+
     public CompletableFuture<String> putAsync(String key, String value, Long ttl, Boolean notExists) {
         return CompletableFuture.completedFuture(put(key, value, ttl, notExists));
     }
@@ -218,5 +238,45 @@ public abstract class StorageEngine {
 
     public CompletableFuture<String> hGetAllAsync(String key) {
         return CompletableFuture.completedFuture(hGetAll(key));
+    }
+
+    public CompletableFuture<String> fzAddAsync(String key, String word, Long frequency) {
+        return CompletableFuture.completedFuture(fzAdd(key, word, frequency));
+    }
+
+    public CompletableFuture<String> fzSearchAsync(String key, String query, Integer topN) {
+        return CompletableFuture.completedFuture(fzSearch(key, query, topN));
+    }
+
+    public CompletableFuture<String> fzSuggestAsync(String key, String query, Integer topN, Integer maxEditDist) {
+        return CompletableFuture.completedFuture(fzSuggest(key, query, topN, maxEditDist));
+    }
+
+    public CompletableFuture<String> fzGetExactAsync(String key, String word) {
+        return CompletableFuture.completedFuture(fzGetExact(key, word));
+    }
+
+    public CompletableFuture<Integer> fzIncrByAsync(String key, String word, Long increment) {
+        return CompletableFuture.completedFuture(fzIncrBy(key, word, increment));
+    }
+
+    public CompletableFuture<Integer> fzRmAsync(String key, String word) {
+        return CompletableFuture.completedFuture(fzRm(key, word));
+    }
+
+    public CompletableFuture<Integer> fzDelAsync(String key) {
+        return CompletableFuture.completedFuture(fzDel(key));
+    }
+
+    public CompletableFuture<Integer> fzExistsAsync(String key, String word) {
+        return CompletableFuture.completedFuture(fzExists(key, word));
+    }
+
+    public CompletableFuture<String> fzPhoneticAsync(String key, String input, Integer limit) {
+        return CompletableFuture.completedFuture(fzPhonetic(key, input, limit));
+    }
+
+    public CompletableFuture<String> fzRanAsync(String key, Integer count) {
+        return CompletableFuture.completedFuture(fzRan(key, count));
     }
 }

@@ -74,6 +74,16 @@ public abstract class BaseCacheServer {
         commandCacheHandler.put(Command.H_RM, () -> HRmHandler.getInstance(engine));
         commandCacheHandler.put(Command.H_DEL, () -> HDelHandler.getInstance(engine));
         commandCacheHandler.put(Command.H_ALL, () -> HGetAllHandler.getInstance(engine));
+        commandCacheHandler.put(Command.FZ_ADD, () -> FzAddHandler.getInstance(engine));
+        commandCacheHandler.put(Command.FZ_SEARCH, () -> FzSearchHandler.getInstance(engine));
+        commandCacheHandler.put(Command.FZ_SUGGEST, () -> FzSuggestHandler.getInstance(engine));
+        commandCacheHandler.put(Command.FZ_DEL, () -> FzDelHandler.getInstance(engine));
+        commandCacheHandler.put(Command.FZ_RM, () -> FzRmHandler.getInstance(engine));
+        commandCacheHandler.put(Command.FZ_RANDOM, () -> FzRanHandler.getInstance(engine));
+        commandCacheHandler.put(Command.FZ_INCR, () -> FzIncrByHandler.getInstance(engine));
+        commandCacheHandler.put(Command.FZ_EXISTS, () -> FzExistsHandler.getInstance(engine));
+        commandCacheHandler.put(Command.FZ_EXACT, () -> FzGetExactHandler.getInstance(engine));
+        commandCacheHandler.put(Command.FZ_PHONETIC, () -> FzPhoneticHandler.getInstance(engine));
 
         readCommands = Arrays.asList(
                 Command.GET,
@@ -93,7 +103,13 @@ public abstract class BaseCacheServer {
                 Command.GEO_EXISTS,
                 Command.GEO_ENCODE,
                 Command.H_GET,
-                Command.H_ALL
+                Command.H_ALL,
+                Command.FZ_EXISTS,
+                Command.FZ_PHONETIC,
+                Command.FZ_RANDOM,
+                Command.FZ_SEARCH,
+                Command.FZ_EXACT,
+                Command.FZ_SUGGEST
         );
 
         writeCommands = Arrays.asList(
@@ -113,7 +129,11 @@ public abstract class BaseCacheServer {
                 Command.GEO_RM,
                 Command.H_RM,
                 Command.H_DEL,
-                Command.H_SET
+                Command.H_SET,
+                Command.FZ_ADD,
+                Command.FZ_DEL,
+                Command.FZ_RM,
+                Command.FZ_INCR
         );
     }
 

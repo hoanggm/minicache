@@ -3,6 +3,7 @@ package org.minicache.struct.fuzzy;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
 public class FuzzySearchData {
@@ -20,10 +21,10 @@ public class FuzzySearchData {
     private final Map<String, WordInfo> dictionary = new ConcurrentHashMap<>();
 
     // 2. Soundex Inverted Index: SoundexCode -> List<RawWord>
-    private final Map<String, List<String>> soundexIndex = new ConcurrentHashMap<>();
+    private final Map<String, Set<String>> soundexIndex = new ConcurrentHashMap<>();
 
     // 3. SymSpell Delete Index (k=1): DeleteVariant -> List<RawWord>
-    private final Map<String, List<String>> symSpellK1Index = new ConcurrentHashMap<>();
+    private final Map<String, Set<String>> symSpellK1Index = new ConcurrentHashMap<>();
 
     /**
      * Lấy thông tin Dictionary
@@ -42,14 +43,13 @@ public class FuzzySearchData {
 
         dictionary.put(cleanWord, wordInfo);
 
-        // Nạp vào Soundex Index
-        soundexIndex.computeIfAbsent(soundexCode, x -> new ArrayList<>()).add(cleanWord);
-
-        // Nạp vào SymSpell k=1 Index (Tạo các biến thể xóa 1 ký tự)
         Set<String> deletes = generateDeletesK1(cleanWord);
-        for (String delete : deletes) {
-            symSpellK1Index.computeIfAbsent(delete, x -> new ArrayList<>()).add(cleanWord);
+        deletes.add(cleanWord);
+        for (String del : deletes) {
+            symSpellK1Index.computeIfAbsent(del, k -> ConcurrentHashMap.newKeySet()).add(cleanWord);
         }
+
+        soundexIndex.computeIfAbsent(soundexCode, k -> ConcurrentHashMap.newKeySet()).add(cleanWord);
     }
 
     /**
@@ -73,13 +73,13 @@ public class FuzzySearchData {
         Set<String> queryDeletes = generateDeletesK1(cleanQuery);
         queryDeletes.add(cleanQuery);
         for (String del : queryDeletes) {
-            List<String> matches = symSpellK1Index.get(del);
+            var matches = symSpellK1Index.get(del);
             if (matches != null) candidateWords.addAll(matches);
         }
 
         // 1.2 Candidate từ Soundex
         String querySoundex = Soundex.encode(cleanQuery);
-        List<String> soundexMatches = soundexIndex.get(querySoundex);
+        var soundexMatches = soundexIndex.get(querySoundex);
         if (soundexMatches != null) {
             candidateWords.addAll(soundexMatches);
         }
@@ -188,7 +188,7 @@ public class FuzzySearchData {
         Set<String> deletes = generateDeletesK1(cleanWord);
         deletes.add(cleanWord);
         for (String del : deletes) {
-            List<String> list = symSpellK1Index.get(del);
+            var list = symSpellK1Index.get(del);
             if (list != null) {
                 list.remove(cleanWord);
                 if (list.isEmpty()) {
@@ -199,7 +199,7 @@ public class FuzzySearchData {
 
         // 3.2 Xóa khỏi Soundex Index
         String soundexCode = removedInfo.soundexCode();
-        List<String> soundexList = soundexIndex.get(soundexCode);
+        var soundexList = soundexIndex.get(soundexCode);
         if (soundexList != null) {
             soundexList.remove(cleanWord);
             if (soundexList.isEmpty()) {
@@ -225,16 +225,16 @@ public class FuzzySearchData {
             bytes += 8; // long/int frequency + references
         }
 
-        // 4.2 Bộ nhớ của SymSpell K=1 Index (Map<String, List<String>>)
-        for (Map.Entry<String, List<String>> entry : symSpellK1Index.entrySet()) {
+        // 4.2 Bộ nhớ của SymSpell K=1 Index
+        for (Map.Entry<String, Set<String>> entry : symSpellK1Index.entrySet()) {
             bytes += estimateStringBytes(entry.getKey());
             for (String val : entry.getValue()) {
                 bytes += estimateStringBytes(val);
             }
         }
 
-        // 4.3 Bộ nhớ của Soundex Index (Map<String, List<String>>)
-        for (Map.Entry<String, List<String>> entry : soundexIndex.entrySet()) {
+        // 4.3 Bộ nhớ của Soundex Index
+        for (Map.Entry<String, Set<String>> entry : soundexIndex.entrySet()) {
             bytes += estimateStringBytes(entry.getKey());
             for (String val : entry.getValue()) {
                 bytes += estimateStringBytes(val);
@@ -271,11 +271,11 @@ public class FuzzySearchData {
         Set<String> deletes = generateDeletesK1(cleanWord);
         deletes.add(cleanWord); // Thêm chính nó vào tập delete key
         for (String del : deletes) {
-            symSpellK1Index.computeIfAbsent(del, k -> new ArrayList<>()).add(cleanWord);
+            symSpellK1Index.computeIfAbsent(del, k -> ConcurrentHashMap.newKeySet()).add(cleanWord);
         }
 
         // 4. Build Soundex Index (Gom nhóm các từ có cùng mã phát âm)
-        soundexIndex.computeIfAbsent(soundexCode, k -> new ArrayList<>()).add(cleanWord);
+        soundexIndex.computeIfAbsent(soundexCode, k -> ConcurrentHashMap.newKeySet()).add(cleanWord);
     }
 
     /**
@@ -283,6 +283,11 @@ public class FuzzySearchData {
      */
     public List<String> getWordsBySoundex(String soundexCode) {
         if (soundexCode == null) return List.of();
-        return soundexIndex.getOrDefault(soundexCode, List.of());
+        var results = soundexIndex.get(soundexCode);
+        if (results == null) {
+            return new ArrayList<>();
+        }
+
+        return results.stream().toList();
     }
 }

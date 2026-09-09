@@ -11,6 +11,7 @@ public class AppConfig {
     public static String NODE_ID;
     public static String CLUSTER_NODES;
     public static Integer LOG_BATCH_SIZE;
+    public static Integer LOAD_SHEDDING;
 
     static {
         Properties prop = new Properties();
@@ -28,6 +29,9 @@ public class AppConfig {
             VERSION = System.getenv("VERSION") != null
                     ? System.getenv("VERSION")
                     : prop.getProperty("server.version");
+            LOAD_SHEDDING = System.getenv("LOAD_SHEDDING") != null
+                    ? Integer.valueOf(System.getenv("LOAD_SHEDDING"))
+                    : Integer.valueOf(prop.getProperty("server.load-shedding"));
             if (VERSION.equals(VERSIONS.V3)) {
                 NODE_ID = System.getenv("NODE_ID");
                 CLUSTER_NODES = System.getenv("CLUSTER_NODES");
@@ -46,6 +50,7 @@ public class AppConfig {
             PORT = 80;
             STORAGE_TYPE = STORAGE_TYPES.SINGLE;
             VERSION = VERSIONS.V2;
+            LOAD_SHEDDING = 0;
         }
     }
 

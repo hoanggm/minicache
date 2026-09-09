@@ -2,6 +2,7 @@ package org.minicache.server;
 
 import org.apache.logging.log4j.Logger;
 import org.minicache.common.Command;
+import org.minicache.common.LoadSheddingCfg;
 import org.minicache.config.AppConfig;
 import org.minicache.engine.StorageEngine;
 import org.minicache.handler.ICacheHandler;
@@ -25,6 +26,7 @@ public abstract class BaseCacheServer {
     protected static List<Command> readCommands;
     protected static List<Command> writeCommands;
     protected static final boolean asyncResponse;
+    protected static final LoadSheddingCfg lsCfg;
 
     static {
         if (AppConfig.STORAGE_TYPE.equals(AppConfig.STORAGE_TYPES.SEGMENT)) {
@@ -135,6 +137,12 @@ public abstract class BaseCacheServer {
                 Command.FZ_RM,
                 Command.FZ_INCR
         );
+
+        if (AppConfig.LOAD_SHEDDING.equals(1)) {
+            lsCfg = new LoadSheddingCfg(0.85, 0.90);
+        } else {
+            lsCfg = null;
+        }
     }
 
     protected static void init(Logger log, Integer port) {
@@ -162,6 +170,13 @@ public abstract class BaseCacheServer {
             log.info("CacheEngine-Info: Number of Segments={}", cfgMap.get("segmentCount"));
             log.info("[Max-Size-Per-Segment={} bytes, Expected-Keys-Per-Segment={}]",
                     cfgMap.get("maxSizePerSegment"), cfgMap.get("segmentExpectedKeys"));
+        }
+
+        if (lsCfg != null) {
+            log.info("Shedding-Config: [Max-Concurrent-Requests={} requests]",
+                    lsCfg.getMaxConcurrentRequests());
+            log.info("[Max-Memory-Threshold-Ratio={}(%), Max-Cpu-Threshold-Ratio={}(%)]",
+                    lsCfg.getMaxMemoryThresholdRatio() * 100, lsCfg.getMaxCpuThresholdRatio() * 100);
         }
     }
 }

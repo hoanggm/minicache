@@ -144,276 +144,293 @@ public class CacheServer extends BaseCacheServer {
                                         continue;
                                     }
 
-                                    // Đọc các thông số nhị phân từ dòng I/O
-                                    byte opcode = in.readByte();
-                                    short keyLength = in.readShort();
-                                    int valueLength = in.readInt();
-
-                                    byte[] keyBytes = new byte[keyLength];
-                                    in.readFully(keyBytes);
-                                    String key = new String(keyBytes, StandardCharsets.UTF_8);
-
-                                    byte[] valueBytes = new byte[valueLength];
-                                    in.readFully(valueBytes);
-                                    String value = new String(valueBytes, StandardCharsets.UTF_8);
-
-                                    short notExists = in.readShort();
-                                    int timeToLive = in.readInt();
-
-                                    int bloomExpectedKeys = in.readInt();
-                                    double bloomFalsePositiveRate = in.readDouble();
-
-                                    double zsScore = in.readDouble();
-                                    double zsStartScr = in.readDouble();
-                                    double zsStopScr = in.readDouble();
-                                    int zsIdx = in.readInt();
-                                    int zsStartIdx = in.readInt();
-                                    int zsStopIdx = in.readInt();
-                                    String zsMember = in.readUTF();
-
-                                    String geoMem = in.readUTF();
-                                    double geoLat = in.readDouble();
-                                    double geoLon = in.readDouble();
-                                    String geoMem2 = in.readUTF();
-                                    double geoRadius = in.readDouble();
-
-                                    int limit = in.readInt();
-                                    String hsField = in.readUTF();
-
-                                    long fzFreq = in.readLong();
-                                    int maxEditDist = in.readInt();
-
-                                    if (opcode == 0x01) {
-                                        if (raftNode.getLeader().equals(raftNode.getNodeId())) {
-                                            sendBinaryResponse(out, (byte) 0x00, "LEADER");
-                                        } else {
-                                            sendBinaryResponse(out, (byte) 0x00, "FOLLOWER");
+                                    if (lsCfg != null) {
+                                        // check load shedding
+                                        if (lsCfg.shouldShed()) {
+                                            sendBinaryResponse(out, (byte) 0xFF, "ERR Server is overloaded (Load Shedding active)");
+                                            skipRequestPayload(in);
+                                            continue;
                                         }
-                                        continue;
-                                    }
-                                    if (opcode == 0x00) {
-                                        break;
+                                        lsCfg.incrementActive();
                                     }
 
-                                    Command cmd = null;
-                                    switch (opcode) {
-                                        case 0x02 -> cmd = Command.GET;
-                                        case 0x03 -> cmd = Command.PUT;
-                                        case 0x04 -> cmd = Command.DELETE;
-                                        case 0x05 -> cmd = Command.LST_KEY;
-                                        case 0x06 -> cmd = Command.EXISTS;
-                                        case 0x07 -> cmd = Command.CLEAR;
-                                        case 0x08 -> cmd = Command.BF_INIT;
-                                        case 0x09 -> cmd = Command.BF_ADD;
-                                        case 0x10 -> cmd = Command.BF_EXISTS;
-                                        case 0x11 -> cmd = Command.BF_RM;
-                                        case 0x12 -> cmd = Command.BF_RS;
-                                        case 0x21 -> cmd = Command.Z_SCR;
-                                        case 0x13 -> cmd = Command.Z_ADD;
-                                        case 0x14 -> cmd = Command.Z_POS;
-                                        case 0x15 -> cmd = Command.Z_RANGE;
-                                        case 0x16 -> cmd = Command.Z_RANK;
-                                        case 0x17 -> cmd = Command.Z_INCR;
-                                        case 0x18 -> cmd = Command.Z_RSCR;
-                                        case 0x19 -> cmd = Command.Z_RM;
-                                        case 0x29 -> cmd = Command.Z_TOP;
-                                        case 0x20 -> cmd = Command.Z_DEL;
-                                        case 0x22 -> cmd = Command.GEO_ADD;
-                                        case 0x23 -> cmd = Command.GEO_SEARCH;
-                                        case 0x24 -> cmd = Command.GEO_DIST;
-                                        case 0x25 -> cmd = Command.GEO_DEL;
-                                        case 0x26 -> cmd = Command.GEO_RM;
-                                        case 0x27 -> cmd = Command.GEO_GET;
-                                        case 0x28 -> cmd = Command.GEO_NB;
-                                        case 0x30 -> cmd = Command.GEO_EXISTS;
-                                        case 0x31 -> cmd = Command.GEO_ENCODE;
-                                        case 0x32 -> cmd = Command.H_SET;
-                                        case 0x33 -> cmd = Command.H_GET;
-                                        case 0x34 -> cmd = Command.H_ALL;
-                                        case 0x35 -> cmd = Command.H_RM;
-                                        case 0x36 -> cmd = Command.H_DEL;
-                                        case 0x37 -> cmd = Command.FZ_ADD;
-                                        case 0x38 -> cmd = Command.FZ_SEARCH;
-                                        case 0x39 -> cmd = Command.FZ_SUGGEST;
-                                        case 0x40 -> cmd = Command.FZ_DEL;
-                                        case 0x41 -> cmd = Command.FZ_RM;
-                                        case 0x42 -> cmd = Command.FZ_EXACT;
-                                        case 0x43 -> cmd = Command.FZ_EXISTS;
-                                        case 0x44 -> cmd = Command.FZ_INCR;
-                                        case 0x45 -> cmd = Command.FZ_PHONETIC;
-                                        case 0x46 -> cmd = Command.FZ_RANDOM;
-                                    }
+                                    try {
+                                        // Đọc các thông số nhị phân từ dòng I/O
+                                        byte opcode = in.readByte();
+                                        short keyLength = in.readShort();
+                                        int valueLength = in.readInt();
 
-                                    if (cmd == null || !commandCacheHandler.containsKey(cmd)) {
-                                        sendBinaryResponse(out, (byte) 0xFF, "ERR Unknown command");
-                                        continue;
-                                    }
+                                        byte[] keyBytes = new byte[keyLength];
+                                        in.readFully(keyBytes);
+                                        String key = new String(keyBytes, StandardCharsets.UTF_8);
 
-                                    if (readCommands.contains(cmd)) {
-                                        var startTime = System.nanoTime();
+                                        byte[] valueBytes = new byte[valueLength];
+                                        in.readFully(valueBytes);
+                                        String value = new String(valueBytes, StandardCharsets.UTF_8);
 
-                                        var msg = new Message();
-                                        msg.setCommand(cmd);
-                                        msg.setKey(key);
-                                        msg.setValue(value);
-                                        msg.setZsMember(zsMember);
-                                        msg.setZsIdx(zsIdx);
-                                        msg.setZsStartIdx(zsStartIdx);
-                                        msg.setZsStopIdx(zsStopIdx);
-                                        msg.setZsScore(zsScore);
-                                        msg.setZsStartScr(zsStartScr);
-                                        msg.setZsStopScr(zsStopScr);
-                                        msg.setGeoMem(geoMem);
-                                        msg.setGeoLat(geoLat);
-                                        msg.setGeoLon(geoLon);
-                                        msg.setGeoMem2(geoMem2);
-                                        msg.setGeoRadius(geoRadius);
-                                        msg.setLimit(limit);
-                                        msg.setHsField(hsField);
-                                        msg.setFzFreq(fzFreq);
-                                        msg.setFzMaxEditDist(maxEditDist);
+                                        short notExists = in.readShort();
+                                        int timeToLive = in.readInt();
 
-                                        if (asyncResponse) {
-                                            Command finalCmd = cmd;
-                                            commandCacheHandler
-                                                    .get(cmd)
-                                                    .get()
-                                                    .handleAsync(msg)
-                                                    .thenAccept(AsyncMDC.wrap(response -> {
-                                                        String resultStr = (response != null) ? response.toString() : "";
+                                        int bloomExpectedKeys = in.readInt();
+                                        double bloomFalsePositiveRate = in.readDouble();
 
-                                                        if (resultStr.isEmpty()) {
-                                                            sendBinaryResponse(out, (byte) 0x02, null);
-                                                        } else {
-                                                            if (finalCmd != Command.GET && CommonUtil.isInteger(resultStr)) {
-                                                                sendBinaryResponse(out, (byte) 0x03, resultStr);
-                                                            } else {
-                                                                sendBinaryResponse(out, (byte) 0x01, resultStr);
-                                                            }
-                                                        }
+                                        double zsScore = in.readDouble();
+                                        double zsStartScr = in.readDouble();
+                                        double zsStopScr = in.readDouble();
+                                        int zsIdx = in.readInt();
+                                        int zsStartIdx = in.readInt();
+                                        int zsStopIdx = in.readInt();
+                                        String zsMember = in.readUTF();
 
-                                                        var endTime = System.nanoTime();
-                                                        log.info("READ DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
-                                                    }));
-                                        } else {
-                                            var response = commandCacheHandler.get(cmd).get().handle(msg);
-                                            String resultStr = (response != null) ? response.toString() : "";
+                                        String geoMem = in.readUTF();
+                                        double geoLat = in.readDouble();
+                                        double geoLon = in.readDouble();
+                                        String geoMem2 = in.readUTF();
+                                        double geoRadius = in.readDouble();
 
-                                            if (resultStr.isEmpty()) {
-                                                sendBinaryResponse(out, (byte) 0x02, null);
+                                        int limit = in.readInt();
+                                        String hsField = in.readUTF();
+
+                                        long fzFreq = in.readLong();
+                                        int maxEditDist = in.readInt();
+
+                                        if (opcode == 0x01) {
+                                            if (raftNode.getLeader().equals(raftNode.getNodeId())) {
+                                                sendBinaryResponse(out, (byte) 0x00, "LEADER");
                                             } else {
-                                                if (cmd != Command.GET && CommonUtil.isInteger(resultStr)) {
-                                                    sendBinaryResponse(out, (byte) 0x03, resultStr);
-                                                } else {
-                                                    sendBinaryResponse(out, (byte) 0x01, resultStr);
-                                                }
+                                                sendBinaryResponse(out, (byte) 0x00, "FOLLOWER");
                                             }
-
-                                            var endTime = System.nanoTime();
-                                            log.info("READ DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
+                                            continue;
                                         }
-                                    } else if (writeCommands.contains(cmd)) {
-                                        // Quy tắc Raft: Nếu node nhận lệnh không phải Leader
-                                        // -> Từ chối thẳng để bảo vệ tính nhất quán
-                                        if (raftNode.getState() != NodeState.LEADER) {
-                                            sendBinaryResponse(out, (byte) 0xFF, "ERR Not the Leader Node. Please forward write command to Leader.");
+                                        if (opcode == 0x00) {
+                                            break;
+                                        }
+
+                                        Command cmd = null;
+                                        switch (opcode) {
+                                            case 0x02 -> cmd = Command.GET;
+                                            case 0x03 -> cmd = Command.PUT;
+                                            case 0x04 -> cmd = Command.DELETE;
+                                            case 0x05 -> cmd = Command.LST_KEY;
+                                            case 0x06 -> cmd = Command.EXISTS;
+                                            case 0x07 -> cmd = Command.CLEAR;
+                                            case 0x08 -> cmd = Command.BF_INIT;
+                                            case 0x09 -> cmd = Command.BF_ADD;
+                                            case 0x10 -> cmd = Command.BF_EXISTS;
+                                            case 0x11 -> cmd = Command.BF_RM;
+                                            case 0x12 -> cmd = Command.BF_RS;
+                                            case 0x21 -> cmd = Command.Z_SCR;
+                                            case 0x13 -> cmd = Command.Z_ADD;
+                                            case 0x14 -> cmd = Command.Z_POS;
+                                            case 0x15 -> cmd = Command.Z_RANGE;
+                                            case 0x16 -> cmd = Command.Z_RANK;
+                                            case 0x17 -> cmd = Command.Z_INCR;
+                                            case 0x18 -> cmd = Command.Z_RSCR;
+                                            case 0x19 -> cmd = Command.Z_RM;
+                                            case 0x29 -> cmd = Command.Z_TOP;
+                                            case 0x20 -> cmd = Command.Z_DEL;
+                                            case 0x22 -> cmd = Command.GEO_ADD;
+                                            case 0x23 -> cmd = Command.GEO_SEARCH;
+                                            case 0x24 -> cmd = Command.GEO_DIST;
+                                            case 0x25 -> cmd = Command.GEO_DEL;
+                                            case 0x26 -> cmd = Command.GEO_RM;
+                                            case 0x27 -> cmd = Command.GEO_GET;
+                                            case 0x28 -> cmd = Command.GEO_NB;
+                                            case 0x30 -> cmd = Command.GEO_EXISTS;
+                                            case 0x31 -> cmd = Command.GEO_ENCODE;
+                                            case 0x32 -> cmd = Command.H_SET;
+                                            case 0x33 -> cmd = Command.H_GET;
+                                            case 0x34 -> cmd = Command.H_ALL;
+                                            case 0x35 -> cmd = Command.H_RM;
+                                            case 0x36 -> cmd = Command.H_DEL;
+                                            case 0x37 -> cmd = Command.FZ_ADD;
+                                            case 0x38 -> cmd = Command.FZ_SEARCH;
+                                            case 0x39 -> cmd = Command.FZ_SUGGEST;
+                                            case 0x40 -> cmd = Command.FZ_DEL;
+                                            case 0x41 -> cmd = Command.FZ_RM;
+                                            case 0x42 -> cmd = Command.FZ_EXACT;
+                                            case 0x43 -> cmd = Command.FZ_EXISTS;
+                                            case 0x44 -> cmd = Command.FZ_INCR;
+                                            case 0x45 -> cmd = Command.FZ_PHONETIC;
+                                            case 0x46 -> cmd = Command.FZ_RANDOM;
+                                        }
+
+                                        if (cmd == null || !commandCacheHandler.containsKey(cmd)) {
+                                            sendBinaryResponse(out, (byte) 0xFF, "ERR Unknown command");
                                             continue;
                                         }
 
-                                        var startTime = System.nanoTime();
+                                        if (readCommands.contains(cmd)) {
+                                            var startTime = System.nanoTime();
 
-                                        var msg = new Message();
-                                        msg.setCommand(cmd);
-                                        msg.setKey(key);
-                                        msg.setValue(value);
-                                        msg.setNotExists(notExists == 1);
-                                        msg.setTtl((long) timeToLive);
-                                        msg.setBloomFilterExpectedElements(bloomExpectedKeys);
-                                        msg.setBloomFilterFalsePositiveRate(bloomFalsePositiveRate);
-                                        msg.setValue(value);
-                                        msg.setZsMember(zsMember);
-                                        msg.setZsIdx(zsIdx);
-                                        msg.setZsStartIdx(zsStartIdx);
-                                        msg.setZsStopIdx(zsStopIdx);
-                                        msg.setZsScore(zsScore);
-                                        msg.setZsStartScr(zsStartScr);
-                                        msg.setZsStopScr(zsStopScr);
-                                        msg.setGeoMem(geoMem);
-                                        msg.setGeoLat(geoLat);
-                                        msg.setGeoLon(geoLon);
-                                        msg.setGeoMem2(geoMem2);
-                                        msg.setGeoRadius(geoRadius);
-                                        msg.setHsField(hsField);
-                                        msg.setFzFreq(fzFreq);
-                                        msg.setFzMaxEditDist(maxEditDist);
+                                            var msg = new Message();
+                                            msg.setCommand(cmd);
+                                            msg.setKey(key);
+                                            msg.setValue(value);
+                                            msg.setZsMember(zsMember);
+                                            msg.setZsIdx(zsIdx);
+                                            msg.setZsStartIdx(zsStartIdx);
+                                            msg.setZsStopIdx(zsStopIdx);
+                                            msg.setZsScore(zsScore);
+                                            msg.setZsStartScr(zsStartScr);
+                                            msg.setZsStopScr(zsStopScr);
+                                            msg.setGeoMem(geoMem);
+                                            msg.setGeoLat(geoLat);
+                                            msg.setGeoLon(geoLon);
+                                            msg.setGeoMem2(geoMem2);
+                                            msg.setGeoRadius(geoRadius);
+                                            msg.setLimit(limit);
+                                            msg.setHsField(hsField);
+                                            msg.setFzFreq(fzFreq);
+                                            msg.setFzMaxEditDist(maxEditDist);
 
-                                        if (asyncResponse) {
-                                            Command finalCmd = cmd;
-                                            commandCacheHandler
-                                                    .get(cmd)
-                                                    .get()
-                                                    .handleAsync(msg)
-                                                    .thenAccept(AsyncMDC.wrap(response -> {
-                                                        String resultStr = (response != null)
-                                                                ? response.toString()
-                                                                : "";
-                                                        if (resultStr.startsWith("E|") || resultStr.startsWith("ERR")) {
-                                                            sendBinaryResponse(out, (byte) 0xFF, resultStr);
-                                                        } else {
-                                                            if (CommonUtil.isInteger(resultStr)) {
-                                                                sendBinaryResponse(out, (byte) 0x03, resultStr);
+                                            if (asyncResponse) {
+                                                Command finalCmd = cmd;
+                                                commandCacheHandler
+                                                        .get(cmd)
+                                                        .get()
+                                                        .handleAsync(msg)
+                                                        .thenAccept(AsyncMDC.wrap(response -> {
+                                                            String resultStr = (response != null) ? response.toString() : "";
+
+                                                            if (resultStr.isEmpty()) {
+                                                                sendBinaryResponse(out, (byte) 0x02, null);
                                                             } else {
-                                                                sendBinaryResponse(out, (byte) 0x01, resultStr);
+                                                                if (finalCmd != Command.GET && CommonUtil.isInteger(resultStr)) {
+                                                                    sendBinaryResponse(out, (byte) 0x03, resultStr);
+                                                                } else {
+                                                                    sendBinaryResponse(out, (byte) 0x01, resultStr);
+                                                                }
                                                             }
-                                                        }
 
-                                                        var endTime = System.nanoTime();
-                                                        log.info("WRITE DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
-
-                                                        // Định dạng dữ liệu thành chuỗi đặc tả Log duy nhất chuyển sang cho tầng mạng Raft
-                                                        String raftCommandStr = String.format("%s|%s|%s|%d|%b|%d|%f|%f|%s|%s|%f|%f|%s|%d",
-                                                                finalCmd.name(), key, value,
-                                                                (long) timeToLive, notExists == 1,
-                                                                bloomExpectedKeys, bloomFalsePositiveRate,
-                                                                zsScore, zsMember, geoMem, geoLat, geoLon,
-                                                                hsField, fzFreq);
-
-                                                        // Đồng bộ sang các node khác
-                                                        raftNode.propose(raftCommandStr);
-                                                    }));
-                                        } else {
-                                            var response = commandCacheHandler
-                                                    .get(cmd)
-                                                    .get()
-                                                    .handle(msg);
-                                            String resultStr = (response != null)
-                                                    ? response.toString()
-                                                    : "";
-                                            if (resultStr.startsWith("E|") || resultStr.startsWith("ERR")) {
-                                                sendBinaryResponse(out, (byte) 0xFF, resultStr);
+                                                            var endTime = System.nanoTime();
+                                                            log.info("READ DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
+                                                        }));
                                             } else {
-                                                if (CommonUtil.isInteger(resultStr)) {
-                                                    sendBinaryResponse(out, (byte) 0x03, resultStr);
+                                                var response = commandCacheHandler.get(cmd).get().handle(msg);
+                                                String resultStr = (response != null) ? response.toString() : "";
+
+                                                if (resultStr.isEmpty()) {
+                                                    sendBinaryResponse(out, (byte) 0x02, null);
                                                 } else {
-                                                    sendBinaryResponse(out, (byte) 0x01, resultStr);
+                                                    if (cmd != Command.GET && CommonUtil.isInteger(resultStr)) {
+                                                        sendBinaryResponse(out, (byte) 0x03, resultStr);
+                                                    } else {
+                                                        sendBinaryResponse(out, (byte) 0x01, resultStr);
+                                                    }
                                                 }
+
+                                                var endTime = System.nanoTime();
+                                                log.info("READ DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
+                                            }
+                                        } else if (writeCommands.contains(cmd)) {
+                                            // Quy tắc Raft: Nếu node nhận lệnh không phải Leader
+                                            // -> Từ chối thẳng để bảo vệ tính nhất quán
+                                            if (raftNode.getState() != NodeState.LEADER) {
+                                                sendBinaryResponse(out, (byte) 0xFF, "ERR Not the Leader Node. Please forward write command to Leader.");
+                                                continue;
                                             }
 
-                                            var endTime = System.nanoTime();
-                                            log.info("WRITE DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
+                                            var startTime = System.nanoTime();
 
-                                            // Định dạng dữ liệu thành chuỗi đặc tả Log duy nhất chuyển sang cho tầng mạng Raft
-                                            String raftCommandStr = String.format("%s|%s|%s|%d|%b|%d|%f|%f|%s|%s|%f|%f|%s|%d",
-                                                    cmd.name(), key, value,
-                                                    (long) timeToLive, notExists == 1,
-                                                    bloomExpectedKeys, bloomFalsePositiveRate,
-                                                    zsScore, zsMember, geoMem, geoLat, geoLon,
-                                                    hsField, fzFreq);
+                                            var msg = new Message();
+                                            msg.setCommand(cmd);
+                                            msg.setKey(key);
+                                            msg.setValue(value);
+                                            msg.setNotExists(notExists == 1);
+                                            msg.setTtl((long) timeToLive);
+                                            msg.setBloomFilterExpectedElements(bloomExpectedKeys);
+                                            msg.setBloomFilterFalsePositiveRate(bloomFalsePositiveRate);
+                                            msg.setValue(value);
+                                            msg.setZsMember(zsMember);
+                                            msg.setZsIdx(zsIdx);
+                                            msg.setZsStartIdx(zsStartIdx);
+                                            msg.setZsStopIdx(zsStopIdx);
+                                            msg.setZsScore(zsScore);
+                                            msg.setZsStartScr(zsStartScr);
+                                            msg.setZsStopScr(zsStopScr);
+                                            msg.setGeoMem(geoMem);
+                                            msg.setGeoLat(geoLat);
+                                            msg.setGeoLon(geoLon);
+                                            msg.setGeoMem2(geoMem2);
+                                            msg.setGeoRadius(geoRadius);
+                                            msg.setHsField(hsField);
+                                            msg.setFzFreq(fzFreq);
+                                            msg.setFzMaxEditDist(maxEditDist);
 
-                                            // Đồng bộ sang các node khác
-                                            raftNode.propose(raftCommandStr);
+                                            if (asyncResponse) {
+                                                Command finalCmd = cmd;
+                                                commandCacheHandler
+                                                        .get(cmd)
+                                                        .get()
+                                                        .handleAsync(msg)
+                                                        .thenAccept(AsyncMDC.wrap(response -> {
+                                                            String resultStr = (response != null)
+                                                                    ? response.toString()
+                                                                    : "";
+                                                            if (resultStr.startsWith("E|") || resultStr.startsWith("ERR")) {
+                                                                sendBinaryResponse(out, (byte) 0xFF, resultStr);
+                                                            } else {
+                                                                if (CommonUtil.isInteger(resultStr)) {
+                                                                    sendBinaryResponse(out, (byte) 0x03, resultStr);
+                                                                } else {
+                                                                    sendBinaryResponse(out, (byte) 0x01, resultStr);
+                                                                }
+                                                            }
+
+                                                            var endTime = System.nanoTime();
+                                                            log.info("WRITE DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
+
+                                                            // Định dạng dữ liệu thành chuỗi đặc tả Log duy nhất chuyển sang cho tầng mạng Raft
+                                                            String raftCommandStr = String.format("%s|%s|%s|%d|%b|%d|%f|%f|%s|%s|%f|%f|%s|%d",
+                                                                    finalCmd.name(), key, value,
+                                                                    (long) timeToLive, notExists == 1,
+                                                                    bloomExpectedKeys, bloomFalsePositiveRate,
+                                                                    zsScore, zsMember, geoMem, geoLat, geoLon,
+                                                                    hsField, fzFreq);
+
+                                                            // Đồng bộ sang các node khác
+                                                            raftNode.propose(raftCommandStr);
+                                                        }));
+                                            } else {
+                                                var response = commandCacheHandler
+                                                        .get(cmd)
+                                                        .get()
+                                                        .handle(msg);
+                                                String resultStr = (response != null)
+                                                        ? response.toString()
+                                                        : "";
+                                                if (resultStr.startsWith("E|") || resultStr.startsWith("ERR")) {
+                                                    sendBinaryResponse(out, (byte) 0xFF, resultStr);
+                                                } else {
+                                                    if (CommonUtil.isInteger(resultStr)) {
+                                                        sendBinaryResponse(out, (byte) 0x03, resultStr);
+                                                    } else {
+                                                        sendBinaryResponse(out, (byte) 0x01, resultStr);
+                                                    }
+                                                }
+
+                                                var endTime = System.nanoTime();
+                                                log.info("WRITE DONE: {} ms", (endTime - startTime) * Math.pow(10, -6));
+
+                                                // Định dạng dữ liệu thành chuỗi đặc tả Log duy nhất chuyển sang cho tầng mạng Raft
+                                                String raftCommandStr = String.format("%s|%s|%s|%d|%b|%d|%f|%f|%s|%s|%f|%f|%s|%d",
+                                                        cmd.name(), key, value,
+                                                        (long) timeToLive, notExists == 1,
+                                                        bloomExpectedKeys, bloomFalsePositiveRate,
+                                                        zsScore, zsMember, geoMem, geoLat, geoLon,
+                                                        hsField, fzFreq);
+
+                                                // Đồng bộ sang các node khác
+                                                raftNode.propose(raftCommandStr);
+                                            }
+                                        }
+                                    } finally {
+                                        if (lsCfg != null) {
+                                            lsCfg.decrementActive();
                                         }
                                     }
+
                                 }
                             } catch (IOException e) {
                                 // log.warn("Client session closed or network disruption");
@@ -452,5 +469,33 @@ public class CacheServer extends BaseCacheServer {
         } catch (Exception ex) {
             log.error(ex);
         }
+    }
+
+    private static void skipRequestPayload(DataInputStream in) throws IOException {
+        byte opcode = in.readByte();
+        short keyLength = in.readShort();
+        int valueLength = in.readInt();
+        in.skipBytes(keyLength + valueLength);
+
+        in.readShort();
+        in.readInt();
+        in.readInt();
+        in.readDouble();// bloomFalsePositiveRate
+        in.readDouble();
+        in.readDouble();
+        in.readDouble();
+        in.readInt();
+        in.readInt();
+        in.readInt();
+        in.readUTF();
+        in.readUTF();
+        in.readDouble();
+        in.readDouble();
+        in.readUTF();
+        in.readDouble();
+        in.readInt();
+        in.readUTF();
+        in.readLong();
+        in.readInt();
     }
 }

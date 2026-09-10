@@ -276,15 +276,14 @@ public class CacheServer extends BaseCacheServer {
     }
 
     private static void skipRequestPayload(DataInputStream in) throws IOException {
-        byte opcode = in.readByte();
+        in.readByte();
         short keyLength = in.readShort();
         int valueLength = in.readInt();
         in.skipBytes(keyLength + valueLength);
-
         in.readShort();
         in.readInt();
         in.readInt();
-        in.readDouble();// bloomFalsePositiveRate
+        in.readDouble();
         in.readDouble();
         in.readDouble();
         in.readDouble();

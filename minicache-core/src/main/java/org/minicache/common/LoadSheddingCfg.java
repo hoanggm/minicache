@@ -10,7 +10,6 @@ public class LoadSheddingCfg {
     private final int maxConcurrentRequests;
     private final double maxMemoryThresholdRatio;
     private final double maxCpuThresholdRatio;
-
     private final OperatingSystemMXBean osBean;
 
     public LoadSheddingCfg(double maxMemoryThresholdRatio, double maxCpuThresholdRatio) {
@@ -30,9 +29,6 @@ public class LoadSheddingCfg {
         this.osBean = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
     }
 
-    /**
-     * Kiểm tra xem Server có nên đón nhận Request mới hay không
-     */
     public boolean shouldShed() {
         if (activeRequests.get() >= maxConcurrentRequests) {
             return true;

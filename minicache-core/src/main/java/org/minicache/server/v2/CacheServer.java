@@ -44,7 +44,7 @@ public class CacheServer extends BaseCacheServer {
 
                                     if (lsCfg != null) {
                                         if (lsCfg.shouldShed()) {
-                                            log.warn("Server is overloaded: Concurrent-Requests -> {} requests", lsCfg.getActiveRequests());
+                                            log.warn("Server is overloaded: {} requests", lsCfg.getActiveRequests());
                                             sendBinaryResponse(out, (byte) 0xFF, "ERR Server is overloaded (Load Shedding active)");
                                             skipRequestPayload(in);
                                             continue;

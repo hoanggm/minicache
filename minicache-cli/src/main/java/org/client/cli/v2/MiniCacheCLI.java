@@ -671,6 +671,7 @@ public class MiniCacheCLI extends BaseMiniCacheCLI {
 
             out.writeLong(fzFreq != null ? Long.parseLong(fzFreq) : 0L);
             out.writeInt(maxEditDist != null ? Integer.parseInt(maxEditDist) : 0);
+            out.writeBoolean(true);
 
             out.flush();
         } catch (Exception ex) {

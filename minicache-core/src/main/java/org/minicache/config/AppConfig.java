@@ -12,6 +12,8 @@ public class AppConfig {
     public static String CLUSTER_NODES;
     public static Integer LOG_BATCH_SIZE;
     public static Integer LOAD_SHEDDING;
+    public static String AUTH_USER;
+    public static String AUTH_PASSWORD;
 
     static {
         Properties prop = new Properties();
@@ -45,12 +47,20 @@ public class AppConfig {
             if (STORAGE_TYPE == null) {
                 STORAGE_TYPE = STORAGE_TYPES.SINGLE;
             }
+            AUTH_USER = System.getenv("AUTH_USER") != null
+                    ? System.getenv("AUTH_USER")
+                    : prop.getProperty("auth.user");
+            AUTH_PASSWORD = System.getenv("AUTH_PASSWORD") != null
+                    ? System.getenv("AUTH_PASSWORD")
+                    : prop.getProperty("auth.password");
         } catch (Exception ex) {
             STORAGE_SIZE = 500;
             PORT = 80;
             STORAGE_TYPE = STORAGE_TYPES.SINGLE;
             VERSION = VERSIONS.V2;
             LOAD_SHEDDING = 0;
+            AUTH_USER = null;
+            AUTH_PASSWORD = null;
         }
     }
 

@@ -1,6 +1,7 @@
 package org.minicache.server;
 
 import org.apache.logging.log4j.Logger;
+import org.minicache.common.AuthManager;
 import org.minicache.common.Command;
 import org.minicache.common.LoadSheddingCfg;
 import org.minicache.config.AppConfig;
@@ -27,6 +28,7 @@ public abstract class BaseCacheServer {
     protected static List<Command> writeCommands;
     protected static final boolean asyncResponse;
     protected static final LoadSheddingCfg lsCfg;
+    protected static final AuthManager authManager;
 
     static {
         if (AppConfig.STORAGE_TYPE.equals(AppConfig.STORAGE_TYPES.SEGMENT)) {
@@ -143,6 +145,8 @@ public abstract class BaseCacheServer {
         } else {
             lsCfg = null;
         }
+
+        authManager = new AuthManager(AppConfig.AUTH_USER, AppConfig.AUTH_PASSWORD);
     }
 
     protected static void init(Logger log, Integer port) {
@@ -177,6 +181,12 @@ public abstract class BaseCacheServer {
                     lsCfg.getMaxConcurrentRequests());
             log.info("[Max-Memory-Threshold-Ratio={}(%), Max-Cpu-Threshold-Ratio={}(%)]",
                     lsCfg.getMaxMemoryThresholdRatio() * 100, lsCfg.getMaxCpuThresholdRatio() * 100);
+        }
+
+        if (!authManager.isAuthDisabled()) {
+            log.info("Authentication: [TRUE]");
+        } else {
+            log.info("Authentication: [FALSE]");
         }
     }
 }

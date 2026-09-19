@@ -29,6 +29,7 @@ public class CacheServer extends BaseCacheServer {
                         var clientSocket = socketServer.accept();
                         executor.submit(() -> {
                             TraceContext.setTraceId(TraceContext.generateTraceId());
+                            boolean isAuthenticated = authManager.isAuthDisabled();
 
                             try (clientSocket;
                                  DataInputStream in = new DataInputStream(new BufferedInputStream(clientSocket.getInputStream(), 2048));
@@ -43,7 +44,7 @@ public class CacheServer extends BaseCacheServer {
 
                                     if (lsCfg != null) {
                                         if (lsCfg.shouldShed()) {
-                                            log.warn("Server is overloaded: Concurrent-requests -> {} requests", lsCfg.getActiveRequests());
+                                            log.warn("Server is overloaded: Concurrent-Requests -> {} requests", lsCfg.getActiveRequests());
                                             sendBinaryResponse(out, (byte) 0xFF, "ERR Server is overloaded (Load Shedding active)");
                                             skipRequestPayload(in);
                                             continue;
@@ -90,8 +91,26 @@ public class CacheServer extends BaseCacheServer {
 
                                         long fzFreq = in.readLong();
                                         int maxEditDist = in.readInt();
+                                        boolean bpAuth = in.readBoolean();
 
                                         var startTime = System.nanoTime();
+
+                                        if (!bpAuth) {
+                                            if (opcode == 0x47) {
+                                                if (authManager.authenticate(value)) {
+                                                    isAuthenticated = true;
+                                                    sendBinaryResponse(out, (byte) 0x00, "OK");
+                                                } else {
+                                                    sendBinaryResponse(out, (byte) 0xFF, "ERR Invalid username or password");
+                                                }
+                                                continue;
+                                            }
+                                            if (!isAuthenticated) {
+                                                sendBinaryResponse(out, (byte) 0xFF, "ERR Authentication required");
+                                                continue;
+                                            }
+                                        }
+
                                         if (opcode == 0x01) {
                                             sendBinaryResponse(out, (byte) 0x00, "PONG");
                                             continue;

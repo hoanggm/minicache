@@ -515,5 +515,6 @@ public class CacheServer extends BaseCacheServer {
         in.readUTF();
         in.readLong();
         in.readInt();
+        in.readBoolean();
     }
 }

@@ -20,7 +20,7 @@ public class RaftNode {
     private final String nodeId;
     private final List<String> clusterNodes;
     private NodeState state;
-    private int currentTerm;
+    private final AtomicInteger currentTerm;
     private String votedFor;
     private final ScheduledExecutorService timerExecutor;
     private ScheduledFuture<?> electionTask;
@@ -43,6 +43,8 @@ public class RaftNode {
     private final Map<String, Socket> connectionPool;
     private final Map<String, DataOutputStream> outputStreamPool;
     private final Map<String, DataInputStream> inputStreamPool;
+    private final Map<String, ReentrantLock> nodeLocks;
+    private final Map<String, AtomicBoolean> isSyncing;
 
     public RaftNode(String nodeId, List<String> clusterNodes, RaftListener stateMachine, Logger logger,
                     Boolean isBinaryMsg, Integer logBatchSize) {
@@ -51,7 +53,7 @@ public class RaftNode {
         this.stateMachine = stateMachine;
         this.timerExecutor = Executors.newSingleThreadScheduledExecutor();
         this.state = NodeState.FOLLOWER;
-        this.currentTerm = 0;
+        this.currentTerm = new AtomicInteger(0);
         this.votedFor = null;
         this.heartbeatExecutor = Executors.newSingleThreadScheduledExecutor();
         this.logList = new CopyOnWriteArrayList<>();
@@ -76,6 +78,8 @@ public class RaftNode {
         }
 
         this.logList.add(new LogEntry(0, 0, "NO_OP"));
+        this.nodeLocks = new ConcurrentHashMap<>();
+        this.isSyncing = new ConcurrentHashMap<>();
     }
 
     public void start() {
@@ -121,7 +125,7 @@ public class RaftNode {
     public int getCurrentTerm() {
         lock.lock();
         try {
-            return this.currentTerm;
+            return this.currentTerm.get();
         } finally {
             lock.unlock();
         }
@@ -152,9 +156,9 @@ public class RaftNode {
             if (this.state == NodeState.LEADER) return;
 
             this.state = NodeState.CANDIDATE;
-            this.currentTerm++;
+            this.currentTerm.incrementAndGet();
             this.votedFor = this.nodeId;
-            termToVote = this.currentTerm;
+            termToVote = this.currentTerm.get();
 
             stateMachine.onBecomeCandidate();
         } finally {
@@ -187,24 +191,27 @@ public class RaftNode {
         }
     }
 
-    private synchronized Socket getOrCreateConnection(String targetNode) throws IOException {
-        Socket socket = connectionPool.get(targetNode);
-        if (socket == null || socket.isClosed() || !socket.isConnected() || socket.isOutputShutdown()) {
-            String[] parts = targetNode.split(":");
-            String host = parts[0];
-            int port = Integer.parseInt(parts[1]);
+    private Socket getOrCreateConnection(String targetNode) throws IOException {
+        ReentrantLock lock = nodeLocks.computeIfAbsent(targetNode, k -> new ReentrantLock());
+        lock.lock();
+        try {
+            Socket socket = connectionPool.get(targetNode);
+            if (socket == null || socket.isClosed() || !socket.isConnected() || socket.isOutputShutdown()) {
+                String[] parts = targetNode.split(":");
+                socket = new Socket();
+                socket.setTcpNoDelay(true);
+                socket.setKeepAlive(true);
+                socket.connect(new InetSocketAddress(parts[0], Integer.parseInt(parts[1])), 1000);
+                socket.setSoTimeout(3000);
 
-            socket = new Socket();
-            socket.setTcpNoDelay(true);
-            socket.setKeepAlive(true);
-            socket.connect(new InetSocketAddress(host, port), 1000);
-            socket.setSoTimeout(3000);
-
-            connectionPool.put(targetNode, socket);
-            outputStreamPool.put(targetNode, new DataOutputStream(new BufferedOutputStream(socket.getOutputStream(), 2048)));
-            inputStreamPool.put(targetNode, new DataInputStream(new BufferedInputStream(socket.getInputStream(), 2048)));
+                connectionPool.put(targetNode, socket);
+                outputStreamPool.put(targetNode, new DataOutputStream(new BufferedOutputStream(socket.getOutputStream(), 2048)));
+                inputStreamPool.put(targetNode, new DataInputStream(new BufferedInputStream(socket.getInputStream(), 2048)));
+            }
+            return socket;
+        } finally {
+            lock.unlock();
         }
-        return socket;
     }
 
     private synchronized void closeAndRemoveConnection(String targetNode) {
@@ -258,7 +265,7 @@ public class RaftNode {
         NodeState currentState;
         lock.lock();
         try {
-            termToSend = this.currentTerm;
+            termToSend = this.currentTerm.get();
             currentState = this.state;
         } finally {
             lock.unlock();
@@ -274,10 +281,19 @@ public class RaftNode {
                 if (shouldSkipNode(targetNode)) continue;
 
                 executor.submit(() -> {
-                    if (this.isBinaryMsg) {
-                        syncLogWithFollowerBinary(targetNode, termToSend);
-                    } else {
-                        syncLogWithFollower(targetNode, termToSend);
+                    AtomicBoolean syncingFlag = isSyncing.computeIfAbsent(targetNode,
+                            k -> new AtomicBoolean(false));
+                    // Nếu node này đang được sync dở, bỏ qua Heartbeat lần này để tránh dồn ứ Thread
+                    if (syncingFlag.compareAndSet(false, true)) {
+                        try {
+                            if (this.isBinaryMsg) {
+                                syncLogWithFollowerBinary(targetNode, termToSend);
+                            } else {
+                                syncLogWithFollower(targetNode, termToSend);
+                            }
+                        } finally {
+                            syncingFlag.set(false);
+                        }
                     }
                 });
             }
@@ -364,8 +380,10 @@ public class RaftNode {
         leaderCommit = this.commitIndex;
 
         int unSyncedCount = logList.size() - nextIdx;
-        if (unSyncedCount >= logBatchSize || (unSyncedCount > 0 && nextIdx <= commitIndex)) {
-            List<LogEntry> subList = logList.subList(nextIdx, logList.size());
+        if (unSyncedCount > 0) {
+            int endIndex = Math.min(logList.size(), nextIdx + logBatchSize);
+            List<LogEntry> subList = logList.subList(nextIdx, endIndex);
+
             StringBuilder sb = new StringBuilder();
             for (LogEntry entry : subList) {
                 sb.append(entry.index())
@@ -380,9 +398,14 @@ public class RaftNode {
 
         try {
             Socket socket = getOrCreateConnection(targetNode);
-            synchronized (socket) {
+            ReentrantLock nodeLock = nodeLocks.computeIfAbsent(targetNode, k -> new ReentrantLock());
+            try (socket) {
                 DataOutputStream out = outputStreamPool.get(targetNode);
                 DataInputStream in = inputStreamPool.get(targetNode);
+
+                if (out == null || in == null) {
+                    throw new IOException("Stream is null, socket might be closed");
+                }
 
                 out.writeByte(0x4C);
                 out.writeInt(termToSend);
@@ -439,6 +462,8 @@ public class RaftNode {
                     }
                 }
                 out.flush();
+            } finally {
+                nodeLock.unlock();
             }
         } catch (Exception ex) {
             closeAndRemoveConnection(targetNode);
@@ -450,7 +475,7 @@ public class RaftNode {
         try {
             if (this.state != NodeState.LEADER) return;
             int entryIndex = logList.size();
-            logList.add(new LogEntry(entryIndex, this.currentTerm, command));
+            logList.add(new LogEntry(entryIndex, this.currentTerm.get(), command));
         } finally {
             lock.unlock();
         }
@@ -463,7 +488,7 @@ public class RaftNode {
             int lastLogIndex = logList.size() - 1;
 
             for (int index = commitIndex + 1; index <= lastLogIndex; index++) {
-                if (logList.get(index).term() == currentTerm) {
+                if (logList.get(index).term() == currentTerm.get()) {
                     int count = 1;
                     for (String targetNode : clusterNodes) {
                         if (shouldSkipNode(targetNode)) continue;
@@ -500,11 +525,11 @@ public class RaftNode {
     public boolean handleAppendEntries(int leaderTerm, String leaderId, int prevLogIndex, int prevLogTerm, int leaderCommit, String entriesData) {
         lock.lock();
         try {
-            if (leaderTerm < this.currentTerm)
+            if (leaderTerm < this.currentTerm.get())
                 return false;
 
-            if (leaderTerm > this.currentTerm || this.state == NodeState.CANDIDATE) {
-                this.currentTerm = leaderTerm;
+            if (leaderTerm > this.currentTerm.get() || this.state == NodeState.CANDIDATE) {
+                this.currentTerm.set(leaderTerm);
                 this.state = NodeState.FOLLOWER;
                 this.votedFor = null;
                 stateMachine.onBecomeFollower();
@@ -592,9 +617,14 @@ public class RaftNode {
             try (DataInputStream in = new DataInputStream(new BufferedInputStream(socket.getInputStream(), 512));
                  DataOutputStream out = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream(), 512))) {
 
+                int myLastLogIndex = this.logList.size() - 1;
+                int myLastLogTerm = (myLastLogIndex >= 0) ? this.logList.get(myLastLogIndex).term() : 0;
+
                 out.writeByte(0x56);
                 out.writeInt(term);
                 out.writeUTF(candidateId);
+                out.writeInt(myLastLogIndex);
+                out.writeInt(myLastLogTerm);
                 out.flush();
 
                 byte magic = in.readByte();
@@ -620,8 +650,8 @@ public class RaftNode {
     public void stepDownToFollower(int newerTerm) {
         lock.lock();
         try {
-            if (newerTerm > this.currentTerm) {
-                this.currentTerm = newerTerm;
+            if (newerTerm > this.currentTerm.get()) {
+                this.currentTerm.set(newerTerm);
                 this.state = NodeState.FOLLOWER;
                 this.votedFor = null;
                 if (heartbeatTask != null) {
@@ -646,13 +676,13 @@ public class RaftNode {
         lock.lock();
         try {
             // Từ chối ngay nếu Candidate có Term nhỏ hơn Term hiện tại
-            if (candidateTerm < this.currentTerm) {
+            if (candidateTerm < this.currentTerm.get()) {
                 return false;
             }
 
             // Nếu Candidate có Term lớn hơn, chuyển ngay về FOLLOWER và reset phiếu bầu
-            if (candidateTerm > this.currentTerm) {
-                this.currentTerm = candidateTerm;
+            if (candidateTerm > this.currentTerm.get()) {
+                this.currentTerm.set(candidateTerm);
                 this.state = NodeState.FOLLOWER;
                 this.votedFor = null;
                 stateMachine.onBecomeFollower();
@@ -765,13 +795,14 @@ public class RaftNode {
                 if (magicByte == 0x56) {
                     int term = in.readInt();
                     String candidateId = in.readUTF();
+                    int candidateLastLogIndex = in.readInt();
+                    int candidateLastLogTerm = in.readInt();
 
-                    int myLastLogIndex = this.logList.size() - 1;
-                    int myLastLogTerm = (myLastLogIndex >= 0) ? this.logList.get(myLastLogIndex).term() : 0;
-                    boolean voteGranted = this.handleRequestVote(term, candidateId, myLastLogIndex, myLastLogTerm);
+                    boolean voteGranted = this.handleRequestVote(term, candidateId,
+                            candidateLastLogIndex, candidateLastLogTerm);
 
                     out.writeByte(0x56);
-                    out.writeInt(this.currentTerm);
+                    out.writeInt(this.currentTerm.get());
                     out.writeBoolean(voteGranted);
                     out.flush();
 
@@ -813,7 +844,7 @@ public class RaftNode {
                             leaderCommit, entriesData);
 
                     out.writeByte(0x4C);
-                    out.writeInt(this.currentTerm);
+                    out.writeInt(this.currentTerm.get());
                     out.writeBoolean(success);
                     out.writeInt((logList.size() - 1));
                     out.flush();

@@ -41,7 +41,7 @@ public class CacheServer extends BaseCacheServer {
                     return;
                 }
 
-                if (raftNode.getLeader().equals(raftNode.getNodeId())) {
+                if (raftNode.getNodeId().equals(raftNode.getLeader())) {
                     return;
                 }
 
@@ -148,7 +148,7 @@ public class CacheServer extends BaseCacheServer {
                                     if (lsCfg != null) {
                                         // check load shedding
                                         if (lsCfg.shouldShed()) {
-                                            log.warn("Server is overloaded: {} request(s)", lsCfg.getActiveRequests());
+                                            log.warn("Server is overloaded");
                                             sendBinaryResponse(out, (byte) 0xFF, "ERR Server is overloaded (Load Shedding active)");
                                             skipRequestPayload(in);
                                             continue;
@@ -214,7 +214,7 @@ public class CacheServer extends BaseCacheServer {
                                         }
 
                                         if (opcode == 0x01) {
-                                            if (raftNode.getLeader().equals(raftNode.getNodeId())) {
+                                            if (raftNode.getNodeId().equals(raftNode.getLeader())) {
                                                 sendBinaryResponse(out, (byte) 0x00, "LEADER");
                                             } else {
                                                 sendBinaryResponse(out, (byte) 0x00, "FOLLOWER");

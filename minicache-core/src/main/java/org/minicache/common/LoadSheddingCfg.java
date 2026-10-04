@@ -55,10 +55,6 @@ public class LoadSheddingCfg {
         activeRequests.decrementAndGet();
     }
 
-    public int getActiveRequests() {
-        return activeRequests.get();
-    }
-
     public int getMaxConcurrentRequests() {
         return maxConcurrentRequests;
     }

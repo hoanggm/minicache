@@ -38,7 +38,7 @@ public class RaftNode {
     private String currentLeader;
     private final AtomicBoolean isRunning;
     private final boolean isBinaryMsg;
-    private final ReentrantLock lock;
+    private final ReentrantLock globalLock;
     private final int logBatchSize;
     private final Map<String, Socket> connectionPool;
     private final Map<String, DataOutputStream> outputStreamPool;
@@ -64,7 +64,7 @@ public class RaftNode {
         this.pendingProposals = new ConcurrentHashMap<>();
         this.isRunning = new AtomicBoolean(true);
         this.logger = logger;
-        this.lock = new ReentrantLock();
+        this.globalLock = new ReentrantLock();
         this.logBatchSize = logBatchSize;
         this.connectionPool = new ConcurrentHashMap<>();
         this.outputStreamPool = new ConcurrentHashMap<>();
@@ -83,7 +83,7 @@ public class RaftNode {
     }
 
     public void start() {
-        lock.lock();
+        globalLock.lock();
         try {
             for (String node : clusterNodes) {
                 if (node.contains(this.nodeId)) {
@@ -94,27 +94,27 @@ public class RaftNode {
             }
             resetElectionTimeout();
         } finally {
-            lock.unlock();
+            globalLock.unlock();
         }
 
         Runtime.getRuntime().addShutdownHook(new Thread(this::stop));
     }
 
     public NodeState getState() {
-        lock.lock();
+        globalLock.lock();
         try {
             return this.state;
         } finally {
-            lock.unlock();
+            globalLock.unlock();
         }
     }
 
     public String getLeader() {
-        lock.lock();
+        globalLock.lock();
         try {
             return this.currentLeader;
         } finally {
-            lock.unlock();
+            globalLock.unlock();
         }
     }
 
@@ -123,16 +123,16 @@ public class RaftNode {
     }
 
     public int getCurrentTerm() {
-        lock.lock();
+        globalLock.lock();
         try {
             return this.currentTerm.get();
         } finally {
-            lock.unlock();
+            globalLock.unlock();
         }
     }
 
     public void resetElectionTimeout() {
-        lock.lock();
+        globalLock.lock();
         try {
             if (electionTask != null && !electionTask.isCancelled()) {
                 electionTask.cancel(true);
@@ -142,7 +142,7 @@ public class RaftNode {
                 Thread.startVirtualThread(this::startElection);
             }, electionTimeout, TimeUnit.MILLISECONDS);
         } finally {
-            lock.unlock();
+            globalLock.unlock();
         }
     }
 
@@ -151,7 +151,7 @@ public class RaftNode {
         int quorum = (clusterNodes.size() / 2) + 1;
         AtomicInteger grantedVotes = new AtomicInteger(1);
 
-        lock.lock();
+        globalLock.lock();
         try {
             if (this.state == NodeState.LEADER) return;
 
@@ -162,7 +162,7 @@ public class RaftNode {
 
             stateMachine.onBecomeCandidate();
         } finally {
-            lock.unlock();
+            globalLock.unlock();
         }
 
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
@@ -181,13 +181,13 @@ public class RaftNode {
             }
         }
 
-        lock.lock();
+        globalLock.lock();
         try {
             if (this.state == NodeState.CANDIDATE) {
                 resetElectionTimeout();
             }
         } finally {
-            lock.unlock();
+            globalLock.unlock();
         }
     }
 
@@ -214,7 +214,9 @@ public class RaftNode {
         }
     }
 
-    private synchronized void closeAndRemoveConnection(String targetNode) {
+    private void closeAndRemoveConnection(String targetNode) {
+        ReentrantLock lock = nodeLocks.computeIfAbsent(targetNode, k -> new ReentrantLock());
+        lock.lock();
         try {
             Socket socket = connectionPool.remove(targetNode);
             outputStreamPool.remove(targetNode);
@@ -223,11 +225,13 @@ public class RaftNode {
                 socket.close();
             }
         } catch (IOException ignored) {
+        } finally {
+            lock.unlock();
         }
     }
 
     private void checkElectionResult(int currentVotes, int quorum) {
-        lock.lock();
+        globalLock.lock();
         try {
             if (this.state == NodeState.CANDIDATE && currentVotes >= quorum) {
                 this.state = NodeState.LEADER;
@@ -246,7 +250,7 @@ public class RaftNode {
                 startHeartbeatLoop();
             }
         } finally {
-            lock.unlock();
+            globalLock.unlock();
         }
     }
 
@@ -263,12 +267,12 @@ public class RaftNode {
     private void broadcastAppendEntries() {
         int termToSend;
         NodeState currentState;
-        lock.lock();
+        globalLock.lock();
         try {
             termToSend = this.currentTerm.get();
             currentState = this.state;
         } finally {
-            lock.unlock();
+            globalLock.unlock();
         }
 
         if (currentState != NodeState.LEADER) {
@@ -471,18 +475,18 @@ public class RaftNode {
     }
 
     public void propose(String command) {
-        lock.lock();
+        globalLock.lock();
         try {
             if (this.state != NodeState.LEADER) return;
             int entryIndex = logList.size();
             logList.add(new LogEntry(entryIndex, this.currentTerm.get(), command));
         } finally {
-            lock.unlock();
+            globalLock.unlock();
         }
     }
 
     private void checkAndAdvanceCommitIndex() {
-        lock.lock();
+        globalLock.lock();
         try {
             int quorum = (clusterNodes.size() / 2) + 1;
             int lastLogIndex = logList.size() - 1;
@@ -508,7 +512,7 @@ public class RaftNode {
                 }
             }
         } finally {
-            lock.unlock();
+            globalLock.unlock();
         }
     }
 
@@ -523,7 +527,7 @@ public class RaftNode {
     }
 
     public boolean handleAppendEntries(int leaderTerm, String leaderId, int prevLogIndex, int prevLogTerm, int leaderCommit, String entriesData) {
-        lock.lock();
+        globalLock.lock();
         try {
             if (leaderTerm < this.currentTerm.get())
                 return false;
@@ -574,7 +578,7 @@ public class RaftNode {
 
             return true;
         } finally {
-            lock.unlock();
+            globalLock.unlock();
         }
     }
 
@@ -648,7 +652,7 @@ public class RaftNode {
     }
 
     public void stepDownToFollower(int newerTerm) {
-        lock.lock();
+        globalLock.lock();
         try {
             if (newerTerm > this.currentTerm.get()) {
                 this.currentTerm.set(newerTerm);
@@ -667,13 +671,13 @@ public class RaftNode {
                 stateMachine.onBecomeFollower();
             }
         } finally {
-            lock.unlock();
+            globalLock.unlock();
         }
     }
 
     public boolean handleRequestVote(int candidateTerm, String candidateId, int candidateLastLogIndex,
                                      int candidateLastLogTerm) {
-        lock.lock();
+        globalLock.lock();
         try {
             // Từ chối ngay nếu Candidate có Term nhỏ hơn Term hiện tại
             if (candidateTerm < this.currentTerm.get()) {
@@ -709,7 +713,7 @@ public class RaftNode {
 
             return false;
         } finally {
-            lock.unlock();
+            globalLock.unlock();
         }
     }
 

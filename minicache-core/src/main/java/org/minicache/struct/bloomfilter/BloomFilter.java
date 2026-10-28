@@ -80,9 +80,15 @@ public class BloomFilter<T> {
     /**
      * Reset BloomFilter bắng cách chuyển tất cả các bit về 0
      */
-    public synchronized void reset() {
-        for (int i = 0; i < this.bits.length(); i++) {
-            this.bits.set(i, 0L);
+    public void reset() {
+        int length = this.bits.length();
+        for (int i = 0; i < length; i++) {
+            long currentValue;
+            while ((currentValue = this.bits.get(i)) != 0L) {
+                if (this.bits.compareAndSet(i, currentValue, 0L)) {
+                    break;
+                }
+            }
         }
     }
 

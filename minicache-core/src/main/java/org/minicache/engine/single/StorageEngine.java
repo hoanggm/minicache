@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class StorageEngine extends org.minicache.engine.StorageEngine {
     private static final Logger log = LogManager.getLogger(StorageEngine.class);
@@ -45,6 +46,7 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
     private final ScheduledExecutorService ttlCleanerScheduler;
     private static final int CLEANUP_BATCH_LIMIT = 100;
     private static final long CLEANUP_INTERVAL_MS = 1000 * 60 * 60;
+    private final ReentrantLock globalLock;
 
     public StorageEngine(long maxSize) {
         this.maxCacheSize = maxSize * 1024 * 1024;
@@ -61,6 +63,7 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
         this.ttlHeap = new PriorityQueue<>();
         this.fuzzyStorage = new ConcurrentHashMap<>();
         this.fzMultiWordStorage = new ConcurrentHashMap<>();
+        this.globalLock = new ReentrantLock();
 
         this.ttlCleanerScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "minicache-single-ttl-cleaner");
@@ -84,8 +87,9 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
         log.info("CacheEngine shutdown successfully");
     }
 
-    public synchronized void cleanExpiredKeys() {
+    public void cleanExpiredKeys() {
         log.info("Expired key(s) will be cleaned up");
+        globalLock.lock();
         try {
             if (ttlHeap.isEmpty()) {
                 return;
@@ -113,6 +117,8 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
             }
         } catch (Throwable t) {
             log.error("Error occurred during TTL cleanup execution", t);
+        } finally {
+            globalLock.unlock();
         }
     }
 
@@ -611,8 +617,11 @@ public class StorageEngine extends org.minicache.engine.StorageEngine {
         });
 
         if (expireTime > 0) {
-            synchronized (this) {
+            globalLock.lock();
+            try {
                 ttlHeap.offer(new TTLEntry(key, expireTime));
+            } finally {
+                globalLock.unlock();
             }
         }
 

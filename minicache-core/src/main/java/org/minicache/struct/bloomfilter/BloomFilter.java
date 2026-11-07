@@ -159,6 +159,6 @@ public class BloomFilter<T> {
      * Lấy kích thước BloomFilter
      */
     public long getSize() {
-       return this.size;
+        return this.size;
     }
 }

@@ -11,6 +11,7 @@ public class AppConfig {
     public static String NODE_ID;
     public static String CLUSTER_NODES;
     public static Integer LOG_BATCH_SIZE;
+    public static Integer LOG_MAX_SIZE;
     public static Integer LOAD_SHEDDING;
     public static String AUTH_USER;
     public static String AUTH_PASSWORD;
@@ -42,6 +43,12 @@ public class AppConfig {
                         : Integer.valueOf(prop.getProperty("server.log-batch-size"));
                 if (LOG_BATCH_SIZE <= 0) {
                     LOG_BATCH_SIZE = 5;
+                }
+                LOG_MAX_SIZE = System.getenv("LOG_MAX_SIZE") != null
+                        ? Integer.valueOf(System.getenv("LOG_MAX_SIZE"))
+                        : Integer.valueOf(prop.getProperty("server.log-max-size"));
+                if (LOG_MAX_SIZE <= 0) {
+                    LOG_MAX_SIZE = 1000;
                 }
             }
             if (STORAGE_TYPE == null) {

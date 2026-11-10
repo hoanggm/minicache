@@ -47,6 +47,7 @@ public class RaftNode {
     private final Map<String, AtomicBoolean> isSyncing;
     private final int snapshotThreshold;
     private int lastSnapshotIndex;
+    private final AtomicBoolean isSafeStartingUp;
 
     public RaftNode(String nodeId, List<String> clusterNodes, RaftListener stateMachine, Logger logger,
                     Boolean isBinaryMsg, Integer logBatchSize, Integer snapshotThreshold) {
@@ -70,6 +71,7 @@ public class RaftNode {
         this.connectionPool = new ConcurrentHashMap<>();
         this.outputStreamPool = new ConcurrentHashMap<>();
         this.inputStreamPool = new ConcurrentHashMap<>();
+        this.isSafeStartingUp = new AtomicBoolean(true);
 
         this.isBinaryMsg = isBinaryMsg;
         if (this.isBinaryMsg) {
@@ -86,7 +88,7 @@ public class RaftNode {
         this.logList.append(new LogEntry(0, 0, "NO_OP"));
         this.lastSnapshotIndex = 0;
         this.snapshotThreshold = Math.min(snapshotThreshold, 5000);
-        this.logger.info("[RAFT] Log-Threshold: {}", this.snapshotThreshold);
+        this.logger.info("[RAFT] Log-Threshold: {} item(s)", this.snapshotThreshold);
     }
 
     public void start() {
@@ -103,6 +105,12 @@ public class RaftNode {
         } finally {
             globalLock.unlock();
         }
+
+        timerExecutor.schedule(() -> {
+            if (isSafeStartingUp.compareAndSet(true, false)) {
+                this.logger.info("[RAFT] Safe Startup timeout expired without LEADER. Opening up for election");
+            }
+        }, 3000, TimeUnit.MILLISECONDS);
 
         Runtime.getRuntime().addShutdownHook(new Thread(this::stop));
     }
@@ -154,6 +162,11 @@ public class RaftNode {
     }
 
     private void startElection() {
+        if (isSafeStartingUp.get()) {
+            resetElectionTimeout();
+            return;
+        }
+
         int termToVote;
         int quorum = (clusterNodes.size() / 2) + 1;
         AtomicInteger grantedVotes = new AtomicInteger(1);
@@ -188,13 +201,8 @@ public class RaftNode {
             }
         }
 
-        globalLock.lock();
-        try {
-            if (this.state == NodeState.CANDIDATE) {
-                resetElectionTimeout();
-            }
-        } finally {
-            globalLock.unlock();
+        if (this.state == NodeState.CANDIDATE) {
+            resetElectionTimeout();
         }
     }
 
@@ -533,7 +541,7 @@ public class RaftNode {
             }
         }
 
-        this.checkAndTriggerCompactLogs();
+        checkAndTriggerCompactLogs();
     }
 
     public boolean handleAppendEntries(int leaderTerm, String leaderId, int prevLogIndex, int prevLogTerm, int leaderCommit, String entriesData) {
@@ -547,6 +555,10 @@ public class RaftNode {
                 this.state = NodeState.FOLLOWER;
                 this.votedFor = null;
                 stateMachine.onBecomeFollower();
+            }
+
+            if (isSafeStartingUp.compareAndSet(true, false)) {
+                this.logger.info("[RAFT] Safe Startup cleared. Node successfully synced with LEADER: [{}]", leaderId);
             }
 
             this.currentLeader = leaderId;

@@ -2,7 +2,7 @@
 <Configuration status="WARN">
     <Appenders>
         <Console name="ConsoleAppender" target="SYSTEM_OUT">
-            <PatternLayout pattern="mc-cli> %msg%n"/>
+            <PatternLayout pattern="> %msg%n"/>
         </Console>
     </Appenders>
 

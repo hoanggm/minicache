@@ -19,6 +19,7 @@ services:
       - STORAGE_TYPE=2
       - VERSION=v3
       - LOG_BATCH_SIZE=50
+      - LOAD_SHEDDING=1
     deploy:
       resources:
         limits:
@@ -49,6 +50,7 @@ services:
       - STORAGE_TYPE=2
       - VERSION=v3
       - LOG_BATCH_SIZE=50
+      - LOAD_SHEDDING=1
     deploy:
       resources:
         limits:
@@ -79,6 +81,7 @@ services:
       - STORAGE_TYPE=2
       - VERSION=v3
       - LOG_BATCH_SIZE=50
+      - LOAD_SHEDDING=1
     deploy:
       resources:
         limits:

@@ -7,6 +7,7 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
@@ -27,7 +28,7 @@ public class RaftNode {
     private final RaftListener stateMachine;
     private final ScheduledExecutorService heartbeatExecutor;
     private ScheduledFuture<?> heartbeatTask;
-    private final RaftRingBuffer logList;
+    private final List<LogEntry> logList;
     private int commitIndex;
     private int lastApplied;
     private final Map<String, Integer> nextIndex;
@@ -45,12 +46,9 @@ public class RaftNode {
     private final Map<String, DataInputStream> inputStreamPool;
     private final Map<String, ReentrantLock> nodeLocks;
     private final Map<String, AtomicBoolean> isSyncing;
-    private final int snapshotThreshold;
-    private int lastSnapshotIndex;
-    private final AtomicBoolean isSafeStartingUp;
 
     public RaftNode(String nodeId, List<String> clusterNodes, RaftListener stateMachine, Logger logger,
-                    Boolean isBinaryMsg, Integer logBatchSize, Integer snapshotThreshold) {
+                    Boolean isBinaryMsg, Integer logBatchSize) {
         this.nodeId = nodeId;
         this.clusterNodes = clusterNodes;
         this.stateMachine = stateMachine;
@@ -59,6 +57,7 @@ public class RaftNode {
         this.currentTerm = new AtomicInteger(0);
         this.votedFor = null;
         this.heartbeatExecutor = Executors.newSingleThreadScheduledExecutor();
+        this.logList = new ArrayList<>();
         this.commitIndex = 0;
         this.lastApplied = 0;
         this.nextIndex = new ConcurrentHashMap<>();
@@ -71,7 +70,6 @@ public class RaftNode {
         this.connectionPool = new ConcurrentHashMap<>();
         this.outputStreamPool = new ConcurrentHashMap<>();
         this.inputStreamPool = new ConcurrentHashMap<>();
-        this.isSafeStartingUp = new AtomicBoolean(true);
 
         this.isBinaryMsg = isBinaryMsg;
         if (this.isBinaryMsg) {
@@ -80,15 +78,9 @@ public class RaftNode {
             this.logger.info("[RAFT] Using Text-based Protocol");
         }
 
+        logList.add(new LogEntry(0, 0, "NO_OP"));
         this.nodeLocks = new ConcurrentHashMap<>();
         this.isSyncing = new ConcurrentHashMap<>();
-
-        int logLstSize = (int) Math.pow(2, 13);
-        this.logList = new RaftRingBuffer(logLstSize);
-        this.logList.append(new LogEntry(0, 0, "NO_OP"));
-        this.lastSnapshotIndex = 0;
-        this.snapshotThreshold = Math.min(snapshotThreshold, 5000);
-        this.logger.info("[RAFT] Log-Threshold: {} item(s)", this.snapshotThreshold);
     }
 
     public void start() {
@@ -105,12 +97,6 @@ public class RaftNode {
         } finally {
             globalLock.unlock();
         }
-
-        timerExecutor.schedule(() -> {
-            if (isSafeStartingUp.compareAndSet(true, false)) {
-                this.logger.info("[RAFT] Safe Startup timeout expired without LEADER. Opening up for election");
-            }
-        }, 3000, TimeUnit.MILLISECONDS);
 
         Runtime.getRuntime().addShutdownHook(new Thread(this::stop));
     }
@@ -162,11 +148,6 @@ public class RaftNode {
     }
 
     private void startElection() {
-        if (isSafeStartingUp.get()) {
-            resetElectionTimeout();
-            return;
-        }
-
         int termToVote;
         int quorum = (clusterNodes.size() / 2) + 1;
         AtomicInteger grantedVotes = new AtomicInteger(1);
@@ -201,8 +182,13 @@ public class RaftNode {
             }
         }
 
-        if (this.state == NodeState.CANDIDATE) {
-            resetElectionTimeout();
+        globalLock.lock();
+        try {
+            if (this.state == NodeState.CANDIDATE) {
+                resetElectionTimeout();
+            }
+        } finally {
+            globalLock.unlock();
         }
     }
 
@@ -253,7 +239,7 @@ public class RaftNode {
                 if (electionTask != null) {
                     electionTask.cancel(true);
                 }
-                int lastLogIndex = logList.getLastIndex();
+                int lastLogIndex = logList.size() - 1;
                 for (String targetNode : clusterNodes) {
                     nextIndex.put(targetNode, lastLogIndex + 1);
                     matchIndex.put(targetNode, 0);
@@ -327,11 +313,11 @@ public class RaftNode {
 
         int nextIdx = nextIndex.getOrDefault(targetNode, 1);
         prevLogIndex = nextIdx - 1;
-        prevLogTerm = (prevLogIndex >= logList.getBaseIndex()) ? logList.get(prevLogIndex).term() : 0;
+        prevLogTerm = logList.get(prevLogIndex).term();
         leaderCommit = this.commitIndex;
 
-        if (logList.getLastIndex() >= nextIdx) {
-            List<LogEntry> subList = logList.subList(nextIdx);
+        if (logList.size() > nextIdx) {
+            List<LogEntry> subList = logList.subList(nextIdx, logList.size());
             StringBuilder sb = new StringBuilder();
             for (LogEntry entry : subList) {
                 sb.append(entry.index())
@@ -390,18 +376,17 @@ public class RaftNode {
         String entriesData = "";
 
         int nextIdx = nextIndex.getOrDefault(targetNode, 1);
-        int lastLogIndex = logList.getLastIndex();
-        if (nextIdx > lastLogIndex + 1) {
-            nextIdx = lastLogIndex + 1;
+        if (nextIdx > logList.size()) {
+            nextIdx = logList.size();
         }
 
         prevLogIndex = nextIdx - 1;
-        prevLogTerm = (prevLogIndex >= logList.getBaseIndex()) ? logList.get(prevLogIndex).term() : 0;
+        prevLogTerm = logList.get(prevLogIndex).term();
         leaderCommit = this.commitIndex;
 
-        int unSyncedCount = (logList.getLastIndex() + 1) - nextIdx;
+        int unSyncedCount = logList.size() - nextIdx;
         if (unSyncedCount > 0) {
-            int endIndex = Math.min(logList.getLastIndex() + 1, nextIdx + logBatchSize);
+            int endIndex = Math.min(logList.size(), nextIdx + logBatchSize);
             List<LogEntry> subList = logList.subList(nextIdx, endIndex);
 
             StringBuilder sb = new StringBuilder();
@@ -465,7 +450,7 @@ public class RaftNode {
 
                     if (success) {
                         if (!entriesData.isEmpty()) {
-                            int lastSentIndex = logList.getLastIndex();
+                            int lastSentIndex = logList.size() - 1;
                             matchIndex.put(targetNode, lastSentIndex);
                             nextIndex.put(targetNode, lastSentIndex + 1);
                             checkAndAdvanceCommitIndex();
@@ -494,8 +479,8 @@ public class RaftNode {
         globalLock.lock();
         try {
             if (this.state != NodeState.LEADER) return;
-            int entryIndex = logList.getLastIndex() + 1;
-            logList.append(new LogEntry(entryIndex, this.currentTerm.get(), command));
+            int entryIndex = logList.size();
+            logList.add(new LogEntry(entryIndex, this.currentTerm.get(), command));
         } finally {
             globalLock.unlock();
         }
@@ -505,7 +490,7 @@ public class RaftNode {
         globalLock.lock();
         try {
             int quorum = (clusterNodes.size() / 2) + 1;
-            int lastLogIndex = logList.getLastIndex();
+            int lastLogIndex = logList.size() - 1;
 
             for (int index = commitIndex + 1; index <= lastLogIndex; index++) {
                 if (logList.get(index).term() == currentTerm.get()) {
@@ -540,8 +525,6 @@ public class RaftNode {
                 stateMachine.onLogCommitted(entry.command());
             }
         }
-
-        checkAndTriggerCompactLogs();
     }
 
     public boolean handleAppendEntries(int leaderTerm, String leaderId, int prevLogIndex, int prevLogTerm, int leaderCommit, String entriesData) {
@@ -557,16 +540,10 @@ public class RaftNode {
                 stateMachine.onBecomeFollower();
             }
 
-            if (isSafeStartingUp.compareAndSet(true, false)) {
-                this.logger.info("[RAFT] Safe Startup cleared. Node successfully synced with LEADER: [{}]", leaderId);
-            }
-
             this.currentLeader = leaderId;
             resetElectionTimeout();
 
-            if (prevLogIndex > logList.getLastIndex()
-                    || prevLogIndex < logList.getBaseIndex()
-                    || logList.get(prevLogIndex).term() != prevLogTerm) {
+            if (prevLogIndex >= logList.size() || logList.get(prevLogIndex).term() != prevLogTerm) {
                 return false;
             }
 
@@ -583,20 +560,20 @@ public class RaftNode {
                     String cmd = tokens[2];
 
                     LogEntry newEntry = new LogEntry(index, term, cmd);
-                    if (writeIndex <= logList.getLastIndex()) {
+                    if (writeIndex < logList.size()) {
                         if (logList.get(writeIndex).term() != term) {
-                            logList.truncate(writeIndex);
-                            logList.append(newEntry);
+                            logList.subList(writeIndex, logList.size()).clear();
+                            logList.add(newEntry);
                         }
                     } else {
-                        logList.append(newEntry);
+                        logList.add(newEntry);
                     }
                     writeIndex++;
                 }
             }
 
             if (leaderCommit > this.commitIndex) {
-                this.commitIndex = Math.min(leaderCommit, logList.getLastIndex());
+                this.commitIndex = Math.min(leaderCommit, logList.size() - 1);
                 applyLogsToStateMachine();
             }
 
@@ -645,10 +622,8 @@ public class RaftNode {
             try (DataInputStream in = new DataInputStream(new BufferedInputStream(socket.getInputStream(), 512));
                  DataOutputStream out = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream(), 512))) {
 
-                int myLastLogIndex = this.logList.getLastIndex();
-                int myLastLogTerm = (myLastLogIndex >= logList.getBaseIndex())
-                        ? this.logList.get(myLastLogIndex).term()
-                        : 0;
+                int myLastLogIndex = this.logList.size() - 1;
+                int myLastLogTerm = (myLastLogIndex >= 0) ? this.logList.get(myLastLogIndex).term() : 0;
 
                 out.writeByte(0x56);
                 out.writeInt(term);
@@ -719,10 +694,8 @@ public class RaftNode {
             }
 
             // Lấy thông tin Log cuối cùng của Node hiện tại trên RAM
-            int myLastLogIndex = this.logList.getLastIndex();
-            int myLastLogTerm = (myLastLogIndex >= logList.getBaseIndex())
-                    ? this.logList.get(myLastLogIndex).term()
-                    : 0;
+            int myLastLogIndex = this.logList.size() - 1;
+            int myLastLogTerm = (myLastLogIndex >= 0) ? this.logList.get(myLastLogIndex).term() : 0;
 
             // Kiểm tra raft election safety: Log của Candidate phải đầy đủ/mới hơn hoặc bằng log của node này
             boolean isLogUpToDate = false;
@@ -789,15 +762,13 @@ public class RaftNode {
                 int term = Integer.parseInt(tokens[1]);
                 String candidateId = tokens[2];
 
-                int myLastLogIndex = this.logList.getLastIndex();
-                int myLastLogTerm = (myLastLogIndex >= logList.getBaseIndex())
-                        ? this.logList.get(myLastLogIndex).term()
-                        : 0;
+                int myLastLogIndex = this.logList.size() - 1;
+                int myLastLogTerm = (myLastLogIndex >= 0) ? this.logList.get(myLastLogIndex).term() : 0;
                 boolean voteGranted = this.handleRequestVote(term, candidateId, myLastLogIndex, myLastLogTerm);
 
                 writer.println("VOTE_RESPONSE|" + this.currentTerm + "|" + voteGranted);
-                this.logger.info("[RAFT] Processed RequestVote from node [{}]: granted={}", candidateId,
-                        voteGranted);
+                this.logger.info("[RAFT] Processed RequestVote from node [{}]: granted={}", candidateId, voteGranted);
+
             } else if ("APPEND_ENTRIES".equals(messageType)) {
                 int leaderTerm = Integer.parseInt(tokens[1]);
                 String leaderId = tokens[2];
@@ -807,7 +778,7 @@ public class RaftNode {
                 String entriesData = tokens.length > 6 ? tokens[6] : "";
 
                 boolean success = this.handleAppendEntries(leaderTerm, leaderId, prevLogIndex, prevLogTerm, leaderCommit, entriesData);
-                writer.println("APPEND_REPLY|" + this.currentTerm + "|" + success + "|" + (logList.getLastIndex()));
+                writer.println("APPEND_REPLY|" + this.currentTerm + "|" + success + "|" + (logList.size() - 1));
             }
         } catch (Exception e) {
             this.logger.error("[RAFT] Error processing Raft RPC", e);
@@ -880,7 +851,7 @@ public class RaftNode {
                     out.writeByte(0x4C);
                     out.writeInt(this.currentTerm.get());
                     out.writeBoolean(success);
-                    out.writeInt((logList.getLastIndex()));
+                    out.writeInt((logList.size() - 1));
                     out.flush();
                 }
             }
@@ -927,39 +898,6 @@ public class RaftNode {
 
         for (String targetNode : connectionPool.keySet()) {
             closeAndRemoveConnection(targetNode);
-        }
-    }
-
-    private void checkAndTriggerCompactLogs() {
-        globalLock.lock();
-        int currentUnCompactedSize;
-        int snapshotTargetIndex;
-        try {
-            currentUnCompactedSize = commitIndex - lastSnapshotIndex;
-            snapshotTargetIndex = commitIndex;
-        } finally {
-            globalLock.unlock();
-        }
-
-        if (currentUnCompactedSize >= snapshotThreshold) {
-            Thread.startVirtualThread(() -> {
-                try {
-                    this.logger.info("[RAFT] Starting snapshot creation for index: [{}]", snapshotTargetIndex);
-
-                    logList.compact(snapshotTargetIndex);
-
-                    globalLock.lock();
-                    try {
-                        this.lastSnapshotIndex = snapshotTargetIndex;
-                    } finally {
-                        globalLock.unlock();
-                    }
-
-                    this.logger.info("[RAFT] Snapshot and Compact completed for index: [{}]", snapshotTargetIndex);
-                } catch (Exception e) {
-                    this.logger.error("[RAFT] Failed to create snapshot/compact at index: [{}]", snapshotTargetIndex, e);
-                }
-            });
         }
     }
 }

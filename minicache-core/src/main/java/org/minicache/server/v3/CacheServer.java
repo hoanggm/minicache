@@ -120,7 +120,7 @@ public class CacheServer extends BaseCacheServer {
             // Start Raft network
             List<String> clusterNodes = Arrays.asList(clusterNodesEnv.split(","));
             raftNode = new RaftNode(nodeId, clusterNodes, stateMachine, log, true,
-                    AppConfig.LOG_BATCH_SIZE, AppConfig.LOG_MAX_SIZE);
+                    AppConfig.LOG_BATCH_SIZE);
             raftNode.start();
 
             try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {

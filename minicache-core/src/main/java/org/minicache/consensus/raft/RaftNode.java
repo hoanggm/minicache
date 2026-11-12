@@ -7,7 +7,6 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
@@ -57,7 +56,7 @@ public class RaftNode {
         this.currentTerm = new AtomicInteger(0);
         this.votedFor = null;
         this.heartbeatExecutor = Executors.newSingleThreadScheduledExecutor();
-        this.logList = new ArrayList<>();
+        this.logList = new CopyOnWriteArrayList<>();
         this.commitIndex = 0;
         this.lastApplied = 0;
         this.nextIndex = new ConcurrentHashMap<>();
